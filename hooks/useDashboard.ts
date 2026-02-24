@@ -1,0 +1,29 @@
+import { useQuery, UseQueryResult } from '@tanstack/react-query';
+import { productivityService, DashboardData, UserProfile } from '@/services/productivityService';
+
+export function useDashboard(): UseQueryResult<DashboardData, Error> {
+  return useQuery({
+    queryKey: ['dashboard'],
+    queryFn: productivityService.getDashboard,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 10 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
+  });
+}
+
+export function useUserProfile(): UseQueryResult<UserProfile, Error> {
+  return useQuery({
+    queryKey: ['user-profile'],
+    queryFn: productivityService.getUserProfile,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 30 * 60 * 1000,
+  });
+}
+
+export function useWorkLogs(limit: number = 10) {
+  return useQuery({
+    queryKey: ['work-logs', limit],
+    queryFn: () => productivityService.getWorkLogs(limit),
+    staleTime: 2 * 60 * 1000,
+  });
+}
