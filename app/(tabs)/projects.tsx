@@ -1,15 +1,17 @@
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, FlatList, TouchableOpacity } from 'react-native';
-import { useState } from 'react';
-import { useProjects, useProjectTasks } from '@/hooks/useProjects';
-import { useAppStore } from '@/stores/appStore';
 import { PathNode } from '@/components/gamification/PathNode';
-import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { Card } from '@/components/ui/Card';
+import { useCategories, useProjects, useProjectTasks } from '@/hooks/useProjects';
+import { useAppStore } from '@/stores/appStore';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useState } from 'react';
+import { ActivityIndicator, FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function ProjectsScreen() {
   const { data: projects, isLoading: isProjectsLoading } = useProjects();
+  const { data: categories } = useCategories();
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const { data: tasks, isLoading: isTasksLoading } = useProjectTasks(selectedProjectId);
   const setActiveProjectId = useAppStore((state) => state.setActiveProjectId);
 
@@ -33,7 +35,12 @@ export default function ProjectsScreen() {
     );
   }
 
-  const selectedProject = projects.find((p) => p.id === selectedProjectId) || projects[0];
+  // Filter projects by selected category
+  const filteredProjects = selectedCategoryId
+    ? projects.filter((p) => p.category_id === selectedCategoryId)
+    : projects;
+
+  const selectedProject = filteredProjects.find((p) => p.id === selectedProjectId) || filteredProjects[0];
   const projectTasks = tasks || [];
 
   const completedCount = projectTasks.filter((t) => t.status === 'completed').length;
@@ -41,12 +48,57 @@ export default function ProjectsScreen() {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {/* Category Filter Chips */}
+      {categories && categories.length > 0 && (
+        <View style={styles.filterSection}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+            <TouchableOpacity
+              style={[
+                styles.filterChip,
+                !selectedCategoryId && styles.filterChipActive,
+              ]}
+              onPress={() => setSelectedCategoryId(null)}
+            >
+              <Text style={[
+                styles.filterChipText,
+                !selectedCategoryId && styles.filterChipTextActive,
+              ]}>
+                All
+              </Text>
+            </TouchableOpacity>
+            {categories.map((cat) => (
+              <TouchableOpacity
+                key={cat.id}
+                style={[
+                  styles.filterChip,
+                  selectedCategoryId === cat.id && styles.filterChipActive,
+                  selectedCategoryId === cat.id && { borderColor: cat.color },
+                ]}
+                onPress={() => setSelectedCategoryId(
+                  selectedCategoryId === cat.id ? null : cat.id
+                )}
+              >
+                <View style={[styles.colorDot, { backgroundColor: cat.color }]} />
+                <Text style={[
+                  styles.filterChipText,
+                  selectedCategoryId === cat.id && { color: cat.color },
+                ]}>
+                  {cat.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
       {/* Projects List */}
       <View style={styles.projectsSection}>
-        <Text style={styles.sectionTitle}>Your Projects</Text>
+        <Text style={styles.sectionTitle}>
+          Your Projects {selectedCategoryId ? `(${filteredProjects.length})` : ''}
+        </Text>
         <FlatList
           scrollEnabled={false}
-          data={projects}
+          data={filteredProjects}
           keyExtractor={(p) => p.id}
           renderItem={({ item }) => (
             <TouchableOpacity
@@ -63,12 +115,17 @@ export default function ProjectsScreen() {
                 <Text style={styles.projectName}>{item.name}</Text>
                 <Text style={styles.projectDesc}>{item.description}</Text>
               </View>
-              <Badge 
-                label={item.status} 
+              <Badge
+                label={item.status}
                 variant={item.status === 'active' ? 'success' : 'warning'}
               />
             </TouchableOpacity>
           )}
+          ListEmptyComponent={
+            <View style={styles.emptyFilterContainer}>
+              <Text style={styles.emptyFilterText}>No projects in this category</Text>
+            </View>
+          }
         />
       </View>
 
@@ -132,14 +189,14 @@ export default function ProjectsScreen() {
                     <Text style={styles.taskDate}>Due: {task.due_date}</Text>
                   )}
                 </View>
-                <Badge 
+                <Badge
                   label={task.status}
                   variant={
                     task.status === 'completed'
                       ? 'success'
                       : task.status === 'in_progress'
-                      ? 'warning'
-                      : 'primary'
+                        ? 'warning'
+                        : 'primary'
                   }
                 />
               </View>
@@ -185,6 +242,49 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 8,
     textAlign: 'center',
+  },
+  filterSection: {
+    marginBottom: 16,
+  },
+  filterScroll: {
+    flexDirection: 'row',
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#1A2C34',
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  filterChipActive: {
+    backgroundColor: '#0F4C2F',
+    borderColor: '#58CC02',
+  },
+  filterChipText: {
+    fontSize: 13,
+    color: '#9CA3AF',
+    fontWeight: '500',
+  },
+  filterChipTextActive: {
+    color: '#58CC02',
+  },
+  colorDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  emptyFilterContainer: {
+    paddingVertical: 32,
+    alignItems: 'center',
+  },
+  emptyFilterText: {
+    fontSize: 14,
+    color: '#6B7280',
   },
   projectsSection: {
     marginBottom: 24,

@@ -1,5 +1,12 @@
 import api from './api';
 
+export interface Category {
+  id: string;
+  name: string;
+  color: string;
+  sort_order: number;
+}
+
 export interface Project {
   id: string;
   name: string;

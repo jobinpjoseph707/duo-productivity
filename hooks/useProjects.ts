@@ -1,5 +1,5 @@
+import { Category, Project, projectService, Task } from '@/services/projectService';
 import { useQuery, UseQueryResult } from '@tanstack/react-query';
-import { projectService, Project, Task } from '@/services/projectService';
 
 export function useProjects(): UseQueryResult<Project[], Error> {
   return useQuery({
@@ -26,5 +26,14 @@ export function useProject(projectId: string | null | undefined): UseQueryResult
     queryFn: () => projectService.getProject(projectId!),
     enabled: !!projectId,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useCategories(): UseQueryResult<Category[], Error> {
+  return useQuery({
+    queryKey: ['categories'],
+    queryFn: projectService.getCategories,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 }
