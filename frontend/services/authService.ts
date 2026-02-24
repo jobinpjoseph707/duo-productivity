@@ -47,11 +47,18 @@ export const authService = {
   // Logout user
   async logout() {
     try {
+      // Always attempt to sign out from Supabase
       const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+
+      // If there's an error (e.g. session already invalid), we still want to 
+      // treat this as a successful local logout to avoid sticking the user.
+      if (error) {
+        console.warn('Supabase signOut returned error, proceeding with local logout:', error);
+      }
     } catch (error) {
-      console.error('Logout error:', error);
-      throw error;
+      console.error('Logout error encountered, continuing anyway:', error);
+      // We don't re-throw here because we want the frontend to proceed with 
+      // clearing local state regardless of server-side success.
     }
   },
 

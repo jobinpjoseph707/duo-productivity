@@ -30,21 +30,29 @@ interface AppState {
   // Active task (for context)
   activeTaskId: string | null;
   setActiveTaskId: (id: string | null) => void;
+
+  // Global reset
+  reset: () => void;
 }
+
+const initialState = {
+  isAuthModalOpen: false,
+  isLogWorkModalOpen: false,
+  isTimeAllocationModalOpen: false,
+  activeProjectId: null,
+  activeTaskId: null,
+};
 
 export const useAppStore = create<AppState>((set) => ({
   // Theme
   isDarkMode: true,
   setDarkMode: (isDark) => set({ isDarkMode: isDark }),
 
+  ...initialState,
+
   // Modal states
-  isAuthModalOpen: false,
   setAuthModalOpen: (isOpen) => set({ isAuthModalOpen: isOpen }),
-
-  isLogWorkModalOpen: false,
   setLogWorkModalOpen: (isOpen) => set({ isLogWorkModalOpen: isOpen }),
-
-  isTimeAllocationModalOpen: false,
   setTimeAllocationModalOpen: (isOpen) => set({ isTimeAllocationModalOpen: isOpen }),
 
   // Notifications
@@ -56,9 +64,9 @@ export const useAppStore = create<AppState>((set) => ({
   clearNotification: () => set({ notification: null }),
 
   // Active context
-  activeProjectId: null,
   setActiveProjectId: (id) => set({ activeProjectId: id }),
-
-  activeTaskId: null,
   setActiveTaskId: (id) => set({ activeTaskId: id }),
+
+  // Global reset
+  reset: () => set(initialState),
 }));

@@ -1,11 +1,10 @@
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useDashboard';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useRouter } from 'expo-router';
+import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -13,20 +12,33 @@ export default function ProfileScreen() {
   const { data: profile, isLoading } = useUserProfile();
 
   const handleLogout = async () => {
-    Alert.alert('Logout', 'Are you sure you want to log out?', [
-      { text: 'Cancel', onPress: () => {} },
-      {
-        text: 'Logout',
-        onPress: async () => {
-          try {
-            await logout();
-            router.replace('/(auth)/login');
-          } catch (error) {
-            Alert.alert('Error', 'Failed to logout');
-          }
+    console.log('ProfileScreen: handleLogout called', { platform: Platform.OS });
+
+    const performLogout = async () => {
+      console.log('ProfileScreen: performLogout executing...');
+      try {
+        console.log('ProfileScreen: Calling auth logout...');
+        await logout();
+        console.log('ProfileScreen: Auth logout completed. Navigating to login...');
+        router.replace('/(auth)/login');
+      } catch (error) {
+        console.error('ProfileScreen: Logout handler error:', error);
+        router.replace('/(auth)/login');
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      // Direct logout for web to avoid Alert issues
+      performLogout();
+    } else {
+      Alert.alert('Logout', 'Are you sure you want to log out?', [
+        { text: 'Cancel', onPress: () => { console.log('ProfileScreen: Logout canceled'); } },
+        {
+          text: 'Logout',
+          onPress: performLogout,
         },
-      },
-    ]);
+      ]);
+    }
   };
 
   if (isLoading) {

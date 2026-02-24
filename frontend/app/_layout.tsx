@@ -11,7 +11,10 @@ import { LogWorkModal } from '@/components/modals/LogWorkModal';
 import { TimeAllocationModal } from '@/components/modals/TimeAllocationModal';
 import { NotificationToast } from '@/components/ui/NotificationToast';
 import { useColorScheme } from '@/components/useColorScheme';
+import { AuthProvider } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { initializeSupabaseListeners } from '@/services/supabaseClient';
+import { useRouter, useSegments } from 'expo-router';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -64,17 +67,43 @@ export default function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <RootLayoutNav />
-      {/* App-wide modals and toast */}
-      <LogWorkModal />
-      <TimeAllocationModal />
-      <NotificationToast />
+      <AuthProvider>
+        <RootLayoutNav />
+        {/* App-wide modals and toast */}
+        <LogWorkModal />
+        <TimeAllocationModal />
+        <NotificationToast />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
+  const { user, isLoading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    const inAuthGroup = segments[0] === '(auth)';
+
+    console.log('RootLayoutNav: Auth Guard Check', {
+      user: !!user,
+      inAuthGroup,
+      segments,
+      isLoading
+    });
+
+    if (!user && !inAuthGroup && segments.length > 0) {
+      console.log('RootLayoutNav: Redirecting to login (User null)');
+      router.replace('/(auth)/login');
+    } else if (user && inAuthGroup) {
+      console.log('RootLayoutNav: Redirecting to dashboard (User present)');
+      router.replace('/(tabs)/dashboard');
+    }
+  }, [user, isLoading, segments]);
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>

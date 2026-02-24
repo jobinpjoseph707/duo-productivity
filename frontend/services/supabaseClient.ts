@@ -7,8 +7,12 @@ import { AppState, Platform } from "react-native";
 const createStorageAdapter = () => {
   if (Platform.OS === "web") {
     // Use localStorage for web to persist sessions across refreshes
+    // Check for typeof localStorage to prevent ReferenceError in SSR/Node environments
+    const isLocalStorageAvailable = typeof localStorage !== 'undefined';
+
     return {
       getItem: (key: string) => {
+        if (!isLocalStorageAvailable) return null;
         try {
           return localStorage.getItem(key);
         } catch (error) {
@@ -17,6 +21,7 @@ const createStorageAdapter = () => {
         }
       },
       setItem: (key: string, value: string) => {
+        if (!isLocalStorageAvailable) return Promise.resolve();
         try {
           localStorage.setItem(key, value);
           return Promise.resolve();
@@ -26,6 +31,7 @@ const createStorageAdapter = () => {
         }
       },
       removeItem: (key: string) => {
+        if (!isLocalStorageAvailable) return Promise.resolve();
         try {
           localStorage.removeItem(key);
           return Promise.resolve();
@@ -87,8 +93,59 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 // Handle app state changes to refresh session when app comes to foreground
 let appSubscription: any = null;
+let lastRefreshTime = 0;
+const REFRESH_THRESHOLD = 5000; // Only refresh every 5s max
 
-const setupAppStateListener = () => {
+const handleAppStateChange = async (state: string) => {
+  if (state === "active") {
+    // Supabase autoRefreshToken usually handles this, 
+    // but we can trigger a manual check, wrapped in a threshold to prevent races.
+    const now = Date.now();
+    if (now - lastRefreshTime > REFRESH_THRESHOLD) {
+      lastRefreshTime = now;
+      try {
+        await supabase.auth.getSession(); // getSession() will trigger a refresh if needed
+      } catch (err) {
+        console.warn("Background session sync failed:", err);
+      }
+    }
+  }
+};
+
+// Safe session refresh helper to prevent multiple concurrent refreshes
+let isRefreshing = false;
+let refreshPromise: Promise<any> | null = null;
+
+export const safeRefreshSession = async () => {
+  if (isRefreshing && refreshPromise) {
+    return refreshPromise;
+  }
+
+  isRefreshing = true;
+  refreshPromise = (async () => {
+    try {
+      const { data, error } = await supabase.auth.refreshSession();
+      if (error) {
+        // Handle fatal errors that require logout
+        if (error.message?.includes('refresh_token_already_used') || error.status === 400) {
+          console.error("Fatal auth error: session invalidated.", error.message);
+          await supabase.auth.signOut();
+          // We don't redirect here, we let onAuthStateChange in AuthContext handle it
+        }
+        throw error;
+      }
+      return data;
+    } finally {
+      isRefreshing = false;
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+};
+
+// Call this from your root layout to initialize listeners
+export const initializeSupabaseListeners = () => {
   if (appSubscription) return;
 
   const subscription = AppState.addEventListener(
@@ -96,18 +153,6 @@ const setupAppStateListener = () => {
     handleAppStateChange,
   );
   appSubscription = subscription;
-};
-
-const handleAppStateChange = async (state: string) => {
-  if (state === "active") {
-    // Refresh session when app comes back to foreground
-    await supabase.auth.refreshSession();
-  }
-};
-
-// Call this from your root layout to initialize listeners
-export const initializeSupabaseListeners = () => {
-  setupAppStateListener();
 };
 
 // Clean up listeners if needed
@@ -120,20 +165,30 @@ export const cleanupSupabaseListeners = () => {
 
 // Helper to get current session
 export const getCurrentSession = async () => {
-  const { data, error } = await supabase.auth.getSession();
-  if (error) {
-    console.error("Error getting session:", error);
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      console.error("Error getting session:", error);
+      return null;
+    }
+    return data.session;
+  } catch (err) {
+    console.error("Unexpected error getting session:", err);
     return null;
   }
-  return data.session;
 };
 
 // Helper to get current user
 export const getCurrentUser = async () => {
-  const { data, error } = await supabase.auth.getUser();
-  if (error) {
-    console.error("Error getting user:", error);
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (error) {
+      console.error("Error getting user:", error);
+      return null;
+    }
+    return data.user;
+  } catch (err) {
+    console.error("Unexpected error getting user:", err);
     return null;
   }
-  return data.user;
 };

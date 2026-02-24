@@ -1,5 +1,5 @@
 import axios, { AxiosError, AxiosInstance } from 'axios';
-import { getCurrentSession, supabase } from './supabaseClient';
+import { getCurrentSession, safeRefreshSession } from './supabaseClient';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -38,21 +38,26 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
-        const { data } = await supabase.auth.refreshSession();
+        console.log('API: 401 detected, attempting safe refresh...');
+        const data = await safeRefreshSession();
         if (data.session?.access_token) {
           // Update the token on the retried request
           originalRequest.headers.Authorization = `Bearer ${data.session.access_token}`;
           return api.request(originalRequest);
         }
-      } catch (refreshError) {
-        console.error('Token refresh failed:', refreshError);
+      } catch (refreshError: any) {
+        console.error('API: Token refresh failed:', refreshError.message || refreshError);
       }
 
-      // Refresh failed or no new token — sign out and redirect to login
-      console.warn('Session expired, redirecting to login...');
-      await supabase.auth.signOut();
-      const { router } = await import('expo-router');
-      router.replace('/(auth)/login');
+      // Refresh failed or no new token — the safeRefreshSession might have already called signOut
+      // but we ensure the UI redirects here if it hasn't already.
+      console.warn('API: Session expired or invalid, cleaning up...');
+      try {
+        const { router } = await import('expo-router');
+        router.replace('/(auth)/login');
+      } catch (e) {
+        console.error('API: Failed to redirect to login:', e);
+      }
     }
     return Promise.reject(error);
   }
