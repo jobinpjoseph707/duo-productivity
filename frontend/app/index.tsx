@@ -10,7 +10,7 @@ export default function EntryScreen() {
   useEffect(() => {
     if (!isLoading) {
       if (isAuthenticated) {
-        router.replace("/(tabs)");
+        router.replace("/(tabs)/dashboard");
       } else {
         router.replace("/(auth)/login");
       }

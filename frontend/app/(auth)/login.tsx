@@ -35,7 +35,7 @@ export default function LoginScreen() {
 
     try {
       await login(email, password);
-      // Navigation handled by entry point (useAuth changes)
+      router.replace("/(tabs)/dashboard");
     } catch (err: any) {
       setLocalError(err.message || "Login failed. Please try again.");
     }
@@ -99,13 +99,7 @@ export default function LoginScreen() {
             variant="primary"
           />
 
-          {/* Test Login Button */}
-          <Button
-            title="Test Login (Bypass)"
-            variant="outline"
-            onPress={() => router.replace("/(tabs)")}
-            style={{ marginTop: 12 }}
-          />
+
 
           {/* Forgot Password Link */}
           <TouchableOpacity

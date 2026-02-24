@@ -1,5 +1,5 @@
-import axios, { AxiosInstance, AxiosError } from 'axios';
-import { supabase, getCurrentSession } from './supabaseClient';
+import axios, { AxiosError, AxiosInstance } from 'axios';
+import { getCurrentSession, supabase } from './supabaseClient';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -32,16 +32,27 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    if (error.response?.status === 401) {
-      // Token expired, try to refresh
+    const originalRequest = error.config as any;
+
+    // Only retry once — prevent infinite 401 → refresh → retry → 401 loop
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
       try {
-        await supabase.auth.refreshSession();
-        // Retry original request
-        return api.request(error.config!);
+        const { data } = await supabase.auth.refreshSession();
+        if (data.session?.access_token) {
+          // Update the token on the retried request
+          originalRequest.headers.Authorization = `Bearer ${data.session.access_token}`;
+          return api.request(originalRequest);
+        }
       } catch (refreshError) {
         console.error('Token refresh failed:', refreshError);
-        // Redirect to login handled in navigation
       }
+
+      // Refresh failed or no new token — sign out and redirect to login
+      console.warn('Session expired, redirecting to login...');
+      await supabase.auth.signOut();
+      const { router } = await import('expo-router');
+      router.replace('/(auth)/login');
     }
     return Promise.reject(error);
   }

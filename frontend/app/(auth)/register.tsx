@@ -19,6 +19,7 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [localError, setLocalError] = useState("");
+  const [signupSuccess, setSignupSuccess] = useState(false);
 
   const handleRegister = async () => {
     setLocalError("");
@@ -46,12 +47,41 @@ export default function RegisterScreen() {
     }
 
     try {
-      await signup(email, password, displayName);
-      // Navigation handled by entry point (useAuth changes)
+      const result = await signup(email, password, displayName);
+      if (result?.session) {
+        // Email confirmation disabled — session exists, navigate directly
+        router.replace("/(tabs)/dashboard");
+      } else {
+        // Email confirmation enabled — show success message
+        setSignupSuccess(true);
+      }
     } catch (err: any) {
       setLocalError(err.message || "Registration failed. Please try again.");
     }
   };
+
+  // Show success screen after signup
+  if (signupSuccess) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.content}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Check Your Email ✉️</Text>
+            <Text style={[styles.subtitle, { marginTop: 12, lineHeight: 22 }]}>
+              We sent a confirmation link to{"\n"}
+              <Text style={{ color: "#58CC02", fontWeight: "600" }}>{email}</Text>
+              {"\n\n"}Please click the link to verify your account, then sign in.
+            </Text>
+          </View>
+          <Button
+            title="Go to Sign In"
+            onPress={() => router.replace("/(auth)/login")}
+            variant="primary"
+          />
+        </View>
+      </View>
+    );
+  }
 
   const displayError = localError || error;
 

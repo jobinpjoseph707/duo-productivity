@@ -2,37 +2,35 @@ import { createClient } from "@supabase/supabase-js";
 import * as SecureStore from "expo-secure-store";
 import { AppState, Platform } from "react-native";
 
-// In-memory storage fallback for development
-const memoryStorage: Record<string, string> = {};
 
 // Create appropriate storage adapter based on platform
 const createStorageAdapter = () => {
   if (Platform.OS === "web") {
-    // Use memory storage for web
+    // Use localStorage for web to persist sessions across refreshes
     return {
       getItem: (key: string) => {
         try {
-          return memoryStorage[key] || null;
+          return localStorage.getItem(key);
         } catch (error) {
-          console.warn("Error retrieving item from memory storage:", error);
+          console.warn("Error retrieving item from localStorage:", error);
           return null;
         }
       },
       setItem: (key: string, value: string) => {
         try {
-          memoryStorage[key] = value;
+          localStorage.setItem(key, value);
           return Promise.resolve();
         } catch (error) {
-          console.warn("Error storing item in memory storage:", error);
+          console.warn("Error storing item in localStorage:", error);
           return Promise.resolve();
         }
       },
       removeItem: (key: string) => {
         try {
-          delete memoryStorage[key];
+          localStorage.removeItem(key);
           return Promise.resolve();
         } catch (error) {
-          console.warn("Error removing item from memory storage:", error);
+          console.warn("Error removing item from localStorage:", error);
           return Promise.resolve();
         }
       },
