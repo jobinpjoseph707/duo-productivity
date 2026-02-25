@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/Button";
+import { useDashboard } from "@/hooks/useDashboard";
 import { useProjects, useProjectTasks } from "@/hooks/useProjects";
 import { productivityService } from "@/services/productivityService";
 import { useAppStore } from "@/stores/appStore";
@@ -24,16 +25,23 @@ export function LogWorkModal() {
     const activeProjectId = useAppStore((state) => state.activeProjectId);
 
     const { data: projects } = useProjects();
+    const { data: dashboard } = useDashboard();
     const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
         null
     );
     const { data: tasks } = useProjectTasks(selectedProjectId);
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [logText, setLogText] = useState("");
     const [timeSpent, setTimeSpent] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const queryClient = useQueryClient();
+
+    // Active time allocations
+    const activeTimers = dashboard?.timeAllocations?.filter(
+        (a) => a.allocatedMinutes > 0
+    ) || [];
 
     // Set default project on open
     useEffect(() => {
@@ -42,12 +50,20 @@ export function LogWorkModal() {
         }
     }, [isOpen, activeProjectId]);
 
+    // Auto-select category if only one timer
+    useEffect(() => {
+        if (isOpen && activeTimers.length === 1) {
+            setSelectedCategory(activeTimers[0].categoryName);
+        }
+    }, [isOpen, activeTimers.length]);
+
     const handleClose = () => {
         setOpen(false);
         setLogText("");
         setTimeSpent("");
         setSelectedProjectId(null);
         setSelectedTaskId(null);
+        setSelectedCategory(null);
     };
 
     const handleSubmit = async () => {
@@ -60,6 +76,7 @@ export function LogWorkModal() {
                 taskId: selectedTaskId || undefined,
                 logText: logText.trim(),
                 timeSpentMinutes: timeSpent ? parseInt(timeSpent) : undefined,
+                categoryName: selectedCategory || undefined,
             });
 
             // Invalidate related queries
@@ -100,6 +117,55 @@ export function LogWorkModal() {
                         style={styles.scrollContent}
                         showsVerticalScrollIndicator={false}
                     >
+                        {/* Timer / Category Selector */}
+                        {activeTimers.length > 0 && (
+                            <View style={styles.fieldGroup}>
+                                <Text style={styles.label}>
+                                    <MaterialIcons name="schedule" size={14} color="#58CC02" />{" "}
+                                    Log time against
+                                </Text>
+                                <View style={styles.timerChips}>
+                                    {activeTimers.map((timer) => {
+                                        const isSelected = selectedCategory === timer.categoryName;
+                                        const pct = timer.allocatedMinutes > 0
+                                            ? Math.round((timer.spentMinutes / timer.allocatedMinutes) * 100)
+                                            : 0;
+                                        return (
+                                            <TouchableOpacity
+                                                key={timer.categoryName}
+                                                style={[
+                                                    styles.timerChip,
+                                                    isSelected && styles.timerChipActive,
+                                                ]}
+                                                onPress={() =>
+                                                    setSelectedCategory(
+                                                        isSelected ? null : timer.categoryName
+                                                    )
+                                                }
+                                            >
+                                                <Text
+                                                    style={[
+                                                        styles.timerChipName,
+                                                        isSelected && styles.timerChipNameActive,
+                                                    ]}
+                                                >
+                                                    {timer.categoryName}
+                                                </Text>
+                                                <Text style={styles.timerChipProgress}>
+                                                    {timer.spentMinutes}/{timer.allocatedMinutes} min ({pct}%)
+                                                </Text>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </View>
+                                {selectedCategory && (
+                                    <Text style={styles.timerHint}>
+                                        ⏱ Time will be added to &quot;{selectedCategory}&quot; timer
+                                    </Text>
+                                )}
+                            </View>
+                        )}
+
                         {/* Project Selector */}
                         <View style={styles.fieldGroup}>
                             <Text style={styles.label}>Project (optional)</Text>
@@ -221,7 +287,10 @@ export function LogWorkModal() {
 
                         {/* Time Spent */}
                         <View style={styles.fieldGroup}>
-                            <Text style={styles.label}>Time spent (minutes)</Text>
+                            <Text style={styles.label}>
+                                Time spent (minutes)
+                                {selectedCategory ? ` → ${selectedCategory}` : ""}
+                            </Text>
                             <TextInput
                                 style={styles.input}
                                 keyboardType="numeric"
@@ -289,6 +358,42 @@ const styles = StyleSheet.create({
         fontWeight: "600",
         color: "#E5E7EB",
         marginBottom: 8,
+    },
+    timerChips: {
+        gap: 8,
+    },
+    timerChip: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderRadius: 10,
+        backgroundColor: "#1A2C34",
+        borderWidth: 1,
+        borderColor: "#374151",
+    },
+    timerChipActive: {
+        backgroundColor: "#0F4C2F",
+        borderColor: "#58CC02",
+    },
+    timerChipName: {
+        fontSize: 14,
+        fontWeight: "600",
+        color: "#9CA3AF",
+    },
+    timerChipNameActive: {
+        color: "#58CC02",
+    },
+    timerChipProgress: {
+        fontSize: 12,
+        color: "#6B7280",
+    },
+    timerHint: {
+        fontSize: 12,
+        color: "#58CC02",
+        marginTop: 6,
+        fontStyle: "italic",
     },
     chipScroll: {
         flexDirection: "row",

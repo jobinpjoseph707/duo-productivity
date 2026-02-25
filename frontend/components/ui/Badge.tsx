@@ -1,24 +1,39 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 interface BadgeProps {
   label: string;
   variant?: 'primary' | 'success' | 'warning' | 'error';
 }
 
+const variantColors: Record<string, { bg: string; text: string }> = {
+  primary: { bg: 'rgba(88, 204, 2, 0.15)', text: '#58CC02' },
+  success: { bg: 'rgba(88, 204, 2, 0.15)', text: '#58CC02' },
+  warning: { bg: 'rgba(255, 150, 0, 0.15)', text: '#FF9600' },
+  error: { bg: 'rgba(239, 68, 68, 0.15)', text: '#EF4444' },
+};
+
 export function Badge({ label, variant = 'primary' }: BadgeProps) {
-  const variantColors = {
-    primary: 'bg-primary',
-    success: 'bg-success',
-    warning: 'bg-warning',
-    error: 'bg-error',
-  };
+  const colors = variantColors[variant] || variantColors.primary;
 
   return (
-    <View className={`${variantColors[variant]} rounded-full px-md py-xs`}>
-      <Text className="text-white text-xs font-outfit font-semibold">
+    <View style={[styles.badge, { backgroundColor: colors.bg }]}>
+      <Text style={[styles.text, { color: colors.text }]}>
         {label}
       </Text>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  badge: {
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  text: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'capitalize',
+  },
+});

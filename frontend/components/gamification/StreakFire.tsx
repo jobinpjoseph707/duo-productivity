@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
-import { View, Text } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
-  useSharedValue,
   useAnimatedStyle,
+  useSharedValue,
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
@@ -18,7 +18,7 @@ export function StreakFire({ count, isFrozen = false }: StreakFireProps) {
   useEffect(() => {
     if (!isFrozen) {
       scale.value = withRepeat(
-        withTiming(1.1, { duration: 1000 }),
+        withTiming(1.15, { duration: 800 }),
         -1,
         true
       );
@@ -32,23 +32,50 @@ export function StreakFire({ count, isFrozen = false }: StreakFireProps) {
   }));
 
   return (
-    <View className="items-center">
-      <Animated.Text
-        style={animatedStyle}
-        className="text-5xl mb-sm"
-      >
+    <View style={styles.container}>
+      <Animated.Text style={[styles.fireEmoji, animatedStyle]}>
         🔥
       </Animated.Text>
-      <View className="bg-accent rounded-full px-md py-xs">
-        <Text className="text-white text-lg font-outfit font-bold">
-          {count} day streak
-        </Text>
-      </View>
+      <Text style={styles.countText}>{count}</Text>
+      <Text style={styles.label}>day streak</Text>
       {isFrozen && (
-        <Text className="text-warning text-xs mt-sm font-outfit">
-          Streak frozen ❄️
-        </Text>
+        <View style={styles.frozenBadge}>
+          <Text style={styles.frozenText}>❄️ Frozen</Text>
+        </View>
       )}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  fireEmoji: {
+    fontSize: 48,
+    marginBottom: 8,
+  },
+  countText: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: '#FF9600',
+  },
+  label: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    marginTop: 2,
+  },
+  frozenBadge: {
+    marginTop: 8,
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  frozenText: {
+    color: '#38BDF8',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+});

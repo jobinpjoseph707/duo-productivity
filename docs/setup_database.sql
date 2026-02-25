@@ -120,6 +120,21 @@ CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
+-- 9. INCREMENT SPENT MINUTES — RPC called when logging work with time tracking
+CREATE OR REPLACE FUNCTION public.increment_spent_minutes(
+    p_user_id UUID,
+    p_date DATE,
+    p_minutes INTEGER,
+    p_category_name TEXT
+)
+RETURNS VOID AS $$
+BEGIN
+    UPDATE time_allocations
+    SET spent_minutes = spent_minutes + p_minutes
+    WHERE user_id = p_user_id AND date = p_date AND category_name = p_category_name;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- ============================================================
--- Done! All tables, RLS policies, and triggers are set up.
+-- Done! All tables, RLS policies, functions, and triggers are set up.
 -- ============================================================

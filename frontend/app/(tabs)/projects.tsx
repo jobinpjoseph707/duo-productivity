@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/Card';
 import { useCategories, useProjects, useProjectTasks } from '@/hooks/useProjects';
 import { useAppStore } from '@/stores/appStore';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function ProjectsScreen() {
@@ -12,8 +12,22 @@ export default function ProjectsScreen() {
   const { data: categories } = useCategories();
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [showAllTasks, setShowAllTasks] = useState(false);
   const { data: tasks, isLoading: isTasksLoading } = useProjectTasks(selectedProjectId);
+  const activeProjectId = useAppStore((state) => state.activeProjectId);
+  const activeTaskId = useAppStore((state) => state.activeTaskId);
   const setActiveProjectId = useAppStore((state) => state.setActiveProjectId);
+  const setActiveTaskId = useAppStore((state) => state.setActiveTaskId);
+
+  // Sync with store state (from dashboard navigation)
+  useEffect(() => {
+    if (activeProjectId && activeProjectId !== selectedProjectId) {
+      setSelectedProjectId(activeProjectId);
+    }
+    if (activeTaskId) {
+      setShowAllTasks(true); // Ensure task is visible if in the first 5 or more
+    }
+  }, [activeProjectId, activeTaskId]);
 
   const isLoading = isProjectsLoading;
 
@@ -156,7 +170,7 @@ export default function ProjectsScreen() {
         <Card className="mb-lg">
           <Text style={styles.sectionTitle}>Task Path</Text>
           <View style={styles.pathContainer}>
-            {projectTasks.map((task, index) => (
+            {projectTasks.slice(0, showAllTasks ? projectTasks.length : 5).map((task, index) => (
               <View key={task.id} style={styles.nodeWrapper}>
                 {index > 0 && <View style={styles.connector} />}
                 <PathNode
@@ -170,6 +184,21 @@ export default function ProjectsScreen() {
               </View>
             ))}
           </View>
+          {projectTasks.length > 5 && (
+            <TouchableOpacity
+              style={styles.expandButton}
+              onPress={() => setShowAllTasks(!showAllTasks)}
+            >
+              <Text style={styles.expandButtonText}>
+                {showAllTasks ? 'Show Less' : `Show All ${projectTasks.length} Tasks`}
+              </Text>
+              <MaterialIcons
+                name={showAllTasks ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+                size={20}
+                color="#58CC02"
+              />
+            </TouchableOpacity>
+          )}
         </Card>
       )}
 
@@ -179,9 +208,18 @@ export default function ProjectsScreen() {
           <Text style={styles.sectionTitle}>Tasks</Text>
           <View style={styles.tasksList}>
             {projectTasks.map((task) => (
-              <View key={task.id} style={styles.taskItem}>
+              <View
+                key={task.id}
+                style={[
+                  styles.taskItem,
+                  activeTaskId === task.id && styles.taskItemHighlighted
+                ]}
+              >
                 <View style={styles.taskContent}>
-                  <Text style={styles.taskTitle}>{task.title}</Text>
+                  <Text style={[
+                    styles.taskTitle,
+                    activeTaskId === task.id && styles.taskTitleHighlighted
+                  ]}>{task.title}</Text>
                   {task.description && (
                     <Text style={styles.taskDesc}>{task.description}</Text>
                   )}
@@ -391,11 +429,20 @@ const styles = StyleSheet.create({
   taskContent: {
     flex: 1,
   },
+  taskItemHighlighted: {
+    backgroundColor: 'rgba(88, 204, 2, 0.1)',
+    borderLeftWidth: 4,
+    borderLeftColor: '#58CC02',
+    paddingLeft: 8,
+  },
   taskTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: '#E5E7EB',
     marginBottom: 4,
+  },
+  taskTitleHighlighted: {
+    color: '#58CC02',
   },
   taskDesc: {
     fontSize: 12,
@@ -408,5 +455,20 @@ const styles = StyleSheet.create({
   },
   spacing: {
     height: 20,
+  },
+  expandButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#374151',
+    gap: 4,
+  },
+  expandButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#58CC02',
   },
 });

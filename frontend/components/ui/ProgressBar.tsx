@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   withTiming,
@@ -10,6 +10,7 @@ interface ProgressBarProps {
   height?: number;
   color?: string;
   label?: string;
+  showPercentage?: boolean;
 }
 
 export function ProgressBar({
@@ -17,20 +18,50 @@ export function ProgressBar({
   height = 8,
   color = '#58CC02',
   label,
+  showPercentage = false,
 }: ProgressBarProps) {
+  const clampedProgress = Math.min(Math.max(progress, 0), 100);
+
   const animatedStyle = useAnimatedStyle(() => ({
-    width: withTiming(`${Math.min(progress, 100)}%`, { duration: 500 }),
+    width: withTiming(`${clampedProgress}%`, { duration: 500 }),
   }));
 
   return (
-    <View className="w-full">
-      {label && <Text className="text-sm text-muted mb-xs">{label}</Text>}
-      <View className="w-full bg-dark rounded-full overflow-hidden" style={{ height }}>
+    <View style={styles.container}>
+      {label && <Text style={styles.label}>{label}</Text>}
+      <View style={[styles.track, { height }]}>
         <Animated.View
-          style={[animatedStyle, { backgroundColor: color, height }]}
+          style={[styles.fill, animatedStyle, { backgroundColor: color, height }]}
         />
       </View>
-      <Text className="text-xs text-muted mt-xs">{progress.toFixed(0)}%</Text>
+      {showPercentage && (
+        <Text style={styles.percentage}>{clampedProgress.toFixed(0)}%</Text>
+      )}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    width: '100%',
+  },
+  label: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  track: {
+    width: '100%',
+    backgroundColor: '#0F1419',
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  fill: {
+    borderRadius: 999,
+  },
+  percentage: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 4,
+  },
+});

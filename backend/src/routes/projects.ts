@@ -1,22 +1,74 @@
 import { Request, Response, Router } from 'express';
-import { createUserClient } from '../services/supabaseClient';
+import { supabaseAdmin } from '../services/supabaseClient';
 
 const router = Router();
 
 /**
+ * Helper: Get category IDs the user has access to from user_category_access table.
+ */
+async function getUserCategoryIds(userId: string): Promise<string[]> {
+    const { data, error } = await supabaseAdmin
+        .from('user_category_access')
+        .select('category_id')
+        .eq('user_id', userId);
+
+    if (error) throw error;
+    return (data || []).map((row: any) => row.category_id);
+}
+
+/**
  * GET /api/projects
- * List all projects the user has access to (RLS filters by category access).
+ * List only projects in categories the user has access to.
  */
 router.get('/', async (req: Request, res: Response) => {
     try {
-        const supabase = createUserClient(req.userToken!);
-        const { data, error } = await supabase
+        const categoryIds = await getUserCategoryIds(req.userId!);
+
+        if (categoryIds.length === 0) {
+            res.json([]);
+            return;
+        }
+
+        const { data: projects, error: projectsError } = await supabaseAdmin
             .from('projects')
             .select('id, name, description, category_id, status, created_at, updated_at')
+            .in('category_id', categoryIds);
+
+        if (projectsError) throw projectsError;
+
+        if (!projects || projects.length === 0) {
+            res.json([]);
+            return;
+        }
+
+        const projectIds = projects.map((p: any) => p.id);
+
+        // Get latest work_log per project for sorting
+        const { data: recentLogs } = await supabaseAdmin
+            .from('work_logs')
+            .select('project_id, created_at')
+            .in('project_id', projectIds)
             .order('created_at', { ascending: false });
 
-        if (error) throw error;
-        res.json(data);
+        // Activity map
+        const lastActivityMap: Record<string, string> = {};
+        for (const log of (recentLogs || [])) {
+            if (log.project_id && !lastActivityMap[log.project_id]) {
+                lastActivityMap[log.project_id] = log.created_at;
+            }
+        }
+
+        // Sort: most recently logged first, then by created_at
+        const sortedProjects = [...projects].sort((a: any, b: any) => {
+            const aTime = lastActivityMap[a.id] || '';
+            const bTime = lastActivityMap[b.id] || '';
+            if (bTime && !aTime) return 1;
+            if (aTime && !bTime) return -1;
+            if (aTime && bTime) return bTime.localeCompare(aTime);
+            return b.created_at.localeCompare(a.created_at);
+        });
+
+        res.json(sortedProjects);
     } catch (error: any) {
         console.error('Error fetching projects:', error.message);
         res.status(500).json({ error: 'Failed to fetch projects' });
@@ -25,15 +77,17 @@ router.get('/', async (req: Request, res: Response) => {
 
 /**
  * GET /api/projects/:id
- * Get a single project by ID.
+ * Get a single project by ID (only if user has category access).
  */
 router.get('/:id', async (req: Request, res: Response) => {
     try {
-        const supabase = createUserClient(req.userToken!);
-        const { data, error } = await supabase
+        const categoryIds = await getUserCategoryIds(req.userId!);
+
+        const { data, error } = await supabaseAdmin
             .from('projects')
             .select('id, name, description, category_id, status, created_at, updated_at')
             .eq('id', req.params.id)
+            .in('category_id', categoryIds)
             .single();
 
         if (error) throw error;
@@ -50,12 +104,26 @@ router.get('/:id', async (req: Request, res: Response) => {
 
 /**
  * GET /api/projects/:projectId/tasks
- * List all tasks for a given project.
+ * List all tasks for a given project (only if user has access to the project's category).
  */
 router.get('/:projectId/tasks', async (req: Request, res: Response) => {
     try {
-        const supabase = createUserClient(req.userToken!);
-        const { data, error } = await supabase
+        const categoryIds = await getUserCategoryIds(req.userId!);
+
+        // Verify the project belongs to an accessible category
+        const { data: project } = await supabaseAdmin
+            .from('projects')
+            .select('id, category_id')
+            .eq('id', req.params.projectId)
+            .in('category_id', categoryIds)
+            .single();
+
+        if (!project) {
+            res.status(404).json({ error: 'Project not found or access denied' });
+            return;
+        }
+
+        const { data, error } = await supabaseAdmin
             .from('tasks')
             .select('id, project_id, title, description, status, assignee, due_date, created_at')
             .eq('project_id', req.params.projectId)
@@ -81,8 +149,7 @@ router.patch('/tasks/:id', async (req: Request, res: Response) => {
             return;
         }
 
-        const supabase = createUserClient(req.userToken!);
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
             .from('tasks')
             .update({ status, updated_at: new Date().toISOString() })
             .eq('id', req.params.id)

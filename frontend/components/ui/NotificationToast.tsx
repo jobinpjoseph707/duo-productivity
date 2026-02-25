@@ -1,9 +1,9 @@
 import { useAppStore } from "@/stores/appStore";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useEffect, useRef } from "react";
-import { Animated, StyleSheet, Text } from "react-native";
+import { Animated, Platform, StyleSheet, Text } from "react-native";
 
-const TOAST_DURATION = 3000;
+const TOAST_DURATION = 3500;
 
 const variantConfig = {
     success: {
@@ -37,6 +37,10 @@ export function NotificationToast() {
 
     useEffect(() => {
         if (notification) {
+            // Reset position first
+            translateY.setValue(-100);
+            opacity.setValue(0);
+
             // Slide in
             Animated.parallel([
                 Animated.spring(translateY, {
@@ -80,6 +84,7 @@ export function NotificationToast() {
 
     return (
         <Animated.View
+            pointerEvents="none"
             style={[
                 styles.container,
                 {
@@ -100,8 +105,9 @@ export function NotificationToast() {
 
 const styles = StyleSheet.create({
     container: {
-        position: "absolute",
-        top: 60,
+        // @ts-ignore — 'fixed' works on web, falls back to 'absolute' on native
+        position: Platform.OS === "web" ? ("fixed" as any) : "absolute",
+        top: 50,
         left: 16,
         right: 16,
         flexDirection: "row",
@@ -111,16 +117,16 @@ const styles = StyleSheet.create({
         paddingVertical: 14,
         borderRadius: 12,
         borderLeftWidth: 4,
-        zIndex: 9999,
-        elevation: 10,
+        zIndex: 99999,
+        elevation: 20,
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
+        shadowOpacity: 0.4,
+        shadowRadius: 12,
     },
     message: {
         flex: 1,
         fontSize: 14,
-        fontWeight: "500",
+        fontWeight: "600",
     },
 });

@@ -3,6 +3,8 @@ import api from './api';
 export interface DashboardData {
   totalXP: number;
   level: number;
+  levelProgress: number;
+  xpForNextLevel: number;
   streak: number;
   streakFrozen: boolean;
   timeAllocations: Array<{
@@ -18,11 +20,23 @@ export interface DashboardData {
   }>;
 }
 
+export interface TaskPathGroup {
+  projectId: string;
+  projectName: string;
+  tasks: Array<{
+    id: string;
+    title: string;
+    status: string;
+    nodeNumber: number;
+  }>;
+}
+
 export interface LogWorkRequest {
   projectId?: string;
   taskId?: string;
   logText: string;
   timeSpentMinutes?: number;
+  categoryName?: string;
 }
 
 export interface UserProfile {
@@ -93,6 +107,17 @@ export const productivityService = {
       return response.data;
     } catch (error) {
       console.error('Error fetching work logs:', error);
+      throw error;
+    }
+  },
+
+  // Get task path for dashboard
+  async getTaskPath(): Promise<TaskPathGroup[]> {
+    try {
+      const response = await api.get('/productivity/path');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching task path:', error);
       throw error;
     }
   },

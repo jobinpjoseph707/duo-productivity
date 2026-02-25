@@ -1,8 +1,14 @@
 import { Request, Response, Router } from 'express';
 import { GamificationEngine } from '../services/gamificationEngine';
-import { createUserClient, supabaseAdmin } from '../services/supabaseClient';
+import { supabaseAdmin } from '../services/supabaseClient';
 
 const router = Router();
+
+/** Get today's date as YYYY-MM-DD in the server's local timezone (not UTC). */
+function getLocalDateString(): string {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
 
 /**
  * GET /api/productivity/dashboard
@@ -11,21 +17,20 @@ const router = Router();
 router.get('/dashboard', async (req: Request, res: Response) => {
     try {
         const userId = req.userId!;
-        const supabase = createUserClient(req.userToken!);
 
-        // Fetch profile, allocations, and recent logs in parallel
+        // Use supabaseAdmin to bypass RLS for profile/allocations/logs
         const [profileResult, allocationsResult, logsResult] = await Promise.all([
-            supabase
+            supabaseAdmin
                 .from('user_profiles')
                 .select('*')
                 .eq('id', userId)
                 .single(),
-            supabase
+            supabaseAdmin
                 .from('time_allocations')
                 .select('*')
                 .eq('user_id', userId)
-                .eq('date', new Date().toISOString().split('T')[0]),
-            supabase
+                .eq('date', getLocalDateString()),
+            supabaseAdmin
                 .from('work_logs')
                 .select('id, log_text, xp_awarded, created_at')
                 .eq('user_id', userId)
@@ -66,13 +71,101 @@ router.get('/dashboard', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/productivity/path
+ * Returns tasks from all user-accessible projects for the Duolingo-style path.
+ */
+router.get('/path', async (req: Request, res: Response) => {
+    try {
+        const userId = req.userId!;
+
+        // Get user's accessible categories
+        const { data: accessData } = await supabaseAdmin
+            .from('user_category_access')
+            .select('category_id')
+            .eq('user_id', userId);
+
+        const categoryIds = (accessData || []).map((r: any) => r.category_id);
+        if (categoryIds.length === 0) {
+            res.json([]);
+            return;
+        }
+
+        // Get active projects in those categories
+        const { data: projects } = await supabaseAdmin
+            .from('projects')
+            .select('id, name, status')
+            .in('category_id', categoryIds)
+            .in('status', ['active', 'in-progress']);
+
+        if (!projects || projects.length === 0) {
+            res.json([]);
+            return;
+        }
+
+        const projectIds = projects.map((p: any) => p.id);
+
+        // Get tasks for all those projects
+        const { data: tasks } = await supabaseAdmin
+            .from('tasks')
+            .select('id, project_id, title, status, created_at')
+            .in('project_id', projectIds)
+            .order('created_at', { ascending: true });
+
+        // Get latest work_log per project to sort by most recent activity
+        const { data: recentLogs } = await supabaseAdmin
+            .from('work_logs')
+            .select('project_id, created_at')
+            .in('project_id', projectIds)
+            .order('created_at', { ascending: false });
+
+        // Build a map of project_id -> latest log timestamp
+        const lastActivityMap: Record<string, string> = {};
+        for (const log of (recentLogs || [])) {
+            if (log.project_id && !lastActivityMap[log.project_id]) {
+                lastActivityMap[log.project_id] = log.created_at;
+            }
+        }
+
+        // Sort projects: most recently logged first, then by name
+        const sortedProjects = [...projects].sort((a: any, b: any) => {
+            const aTime = lastActivityMap[a.id] || '';
+            const bTime = lastActivityMap[b.id] || '';
+            if (bTime && !aTime) return 1;
+            if (aTime && !bTime) return -1;
+            if (aTime && bTime) return bTime.localeCompare(aTime);
+            return a.name.localeCompare(b.name);
+        });
+
+        // Group tasks by project
+        const pathGroups = sortedProjects.map((project: any) => {
+            const projectTasks = (tasks || []).filter((t: any) => t.project_id === project.id);
+            return {
+                projectId: project.id,
+                projectName: project.name,
+                tasks: projectTasks.map((t: any, idx: number) => ({
+                    id: t.id,
+                    title: t.title,
+                    status: t.status,
+                    nodeNumber: idx + 1,
+                })),
+            };
+        }).filter((g: any) => g.tasks.length > 0);
+
+        res.json(pathGroups);
+    } catch (error: any) {
+        console.error('Error fetching path:', error.message);
+        res.status(500).json({ error: 'Failed to fetch path' });
+    }
+});
+
+/**
  * POST /api/productivity/log
  * Log work, award XP, update streak.
  */
 router.post('/log', async (req: Request, res: Response) => {
     try {
         const userId = req.userId!;
-        const { projectId, taskId, logText, timeSpentMinutes } = req.body;
+        const { projectId, taskId, logText, timeSpentMinutes, categoryName } = req.body;
 
         if (!logText) {
             res.status(400).json({ error: 'logText is required' });
@@ -120,19 +213,20 @@ router.post('/log', async (req: Request, res: Response) => {
                 total_xp: xpResult.newTotalXP,
                 level: xpResult.newLevel,
                 streak_count: streakResult.streakCount,
-                last_activity_date: new Date().toISOString().split('T')[0],
+                last_activity_date: getLocalDateString(),
             });
 
         if (profileError) throw profileError;
 
         // If time tracking, update spent_minutes on allocations
-        if (timeSpentMinutes) {
-            const today = new Date().toISOString().split('T')[0];
+        if (timeSpentMinutes && categoryName) {
+            const today = getLocalDateString();
             try {
                 const { error: rpcError } = await supabaseAdmin.rpc('increment_spent_minutes', {
                     p_user_id: userId,
                     p_date: today,
                     p_minutes: timeSpentMinutes,
+                    p_category_name: categoryName,
                 });
                 if (rpcError) {
                     console.warn('increment_spent_minutes RPC not available:', rpcError.message);
@@ -179,7 +273,7 @@ router.post('/allocations', async (req: Request, res: Response) => {
             return;
         }
 
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateString();
 
         // Upsert: update if exists for today, insert if not
         const { data: existing } = await supabaseAdmin
@@ -226,9 +320,8 @@ router.post('/allocations', async (req: Request, res: Response) => {
 router.get('/profile', async (req: Request, res: Response) => {
     try {
         const userId = req.userId!;
-        const supabase = createUserClient(req.userToken!);
 
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
             .from('user_profiles')
             .select('*')
             .eq('id', userId)
@@ -266,9 +359,8 @@ router.get('/logs', async (req: Request, res: Response) => {
     try {
         const userId = req.userId!;
         const limit = parseInt(req.query.limit as string) || 10;
-        const supabase = createUserClient(req.userToken!);
 
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
             .from('work_logs')
             .select('id, project_id, task_id, log_text, xp_awarded, created_at')
             .eq('user_id', userId)
@@ -276,7 +368,18 @@ router.get('/logs', async (req: Request, res: Response) => {
             .limit(limit);
 
         if (error) throw error;
-        res.json(data);
+
+        // Map to camelCase to match frontend expectations
+        const mapped = (data || []).map((l: any) => ({
+            id: l.id,
+            projectId: l.project_id,
+            taskId: l.task_id,
+            logText: l.log_text,
+            xpAwarded: l.xp_awarded,
+            createdAt: l.created_at,
+        }));
+
+        res.json(mapped);
     } catch (error: any) {
         console.error('Error fetching work logs:', error.message);
         res.status(500).json({ error: 'Failed to fetch work logs' });

@@ -71,15 +71,16 @@ export class GamificationEngine {
             return { streakCount: 1, streakMaintained: true, streakBroken: false };
         }
 
-        const last = new Date(lastActivityDate);
-        const now = new Date();
-
-        // Reset time components for date-only comparison
+        // Parse the stored date (YYYY-MM-DD) as local date components
+        const parts = lastActivityDate.split('-').map(Number);
+        const last = new Date(parts[0], parts[1] - 1, parts[2]); // Local midnight
         last.setHours(0, 0, 0, 0);
+
+        const now = new Date();
         now.setHours(0, 0, 0, 0);
 
         const diffMs = now.getTime() - last.getTime();
-        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
 
         if (diffDays === 0) {
             // Same day — streak unchanged

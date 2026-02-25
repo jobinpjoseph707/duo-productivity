@@ -1,6 +1,6 @@
-import React from 'react';
-import { View, Text } from 'react-native';
 import { ProgressBar } from '@/components/ui/ProgressBar';
+import React from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 
 interface XPProgressBarProps {
   currentXP: number;
@@ -13,15 +13,15 @@ export function XPProgressBar({
   nextLevelXP,
   level,
 }: XPProgressBarProps) {
-  const progress = (currentXP / nextLevelXP) * 100;
+  const progress = nextLevelXP > 0 ? (currentXP / nextLevelXP) * 100 : 0;
 
   return (
-    <View className="gap-sm">
-      <View className="flex-row justify-between items-center">
-        <Text className="text-primary font-outfit font-bold text-lg">
-          Level {level}
-        </Text>
-        <Text className="text-muted text-sm">
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.levelBadge}>
+          <Text style={styles.levelText}>Lv. {level}</Text>
+        </View>
+        <Text style={styles.xpText}>
           {currentXP} / {nextLevelXP} XP
         </Text>
       </View>
@@ -33,3 +33,29 @@ export function XPProgressBar({
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    gap: 12,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  levelBadge: {
+    backgroundColor: 'rgba(88, 204, 2, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  levelText: {
+    color: '#58CC02',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  xpText: {
+    color: '#6B7280',
+    fontSize: 13,
+  },
+});
