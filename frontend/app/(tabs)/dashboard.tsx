@@ -1,6 +1,7 @@
 import { PathNode } from "@/components/gamification/PathNode";
 import { XPProgressBar } from "@/components/gamification/XPProgressBar";
 import { Card } from "@/components/ui/Card";
+import { useDailyQuests } from "@/hooks/useDailyQuests";
 import {
   useDashboard,
   useUserProfile,
@@ -22,6 +23,7 @@ export default function DashboardScreen() {
   const { data: dashboard, isLoading: isDashboardLoading } = useDashboard();
   const { data: userProfile, isLoading: isProfileLoading } = useUserProfile();
   const { data: pathGroups } = useTaskPath();
+  const { quests } = useDailyQuests();
   const setLogWorkModalOpen = useAppStore((state) => state.setLogWorkModalOpen);
   const router = useRouter();
 
@@ -105,6 +107,44 @@ export default function DashboardScreen() {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* 🎯 Today's Quests — Gamified Daily Backlog */}
+      {quests && quests.length > 0 && (
+        <Card>
+          <View style={styles.pathHeader}>
+            <Text style={styles.sectionTitle}>Today's Quests</Text>
+            <View style={styles.bonusBadge}>
+              <Text style={styles.bonusText}>+50 XP BONUS</Text>
+            </View>
+          </View>
+          <View style={styles.questList}>
+            {quests.map((quest: any) => (
+              <TouchableOpacity
+                key={quest.id}
+                style={styles.questItem}
+                onPress={() => {
+                  useAppStore.setState({
+                    activeProjectId: quest.projectId,
+                    activeTaskId: quest.id,
+                  });
+                  setLogWorkModalOpen(true);
+                }}
+              >
+                <View style={[styles.questCheckbox, quest.status === 'completed' && styles.questCheckboxDone]}>
+                  {quest.status === 'completed' && <MaterialIcons name="check" size={14} color="#000" />}
+                </View>
+                <View style={styles.questContent}>
+                  <Text style={[styles.questTitle, quest.status === 'completed' && styles.questTextDone]}>
+                    {quest.title}
+                  </Text>
+                  <Text style={styles.questProject}>{quest.projectName}</Text>
+                </View>
+                {!quest.isPlanned && <MaterialIcons name="auto-awesome" size={14} color="#FF9600" />}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Card>
+      )}
 
       {/* ── Your Path ── Duolingo-style task path */}
       {pathGroups && pathGroups.length > 0 && (
@@ -425,4 +465,61 @@ const styles = StyleSheet.create({
   },
 
   spacing: { height: 20 },
+
+  /* Quests Styles */
+  bonusBadge: {
+    backgroundColor: 'rgba(255, 150, 0, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 150, 0, 0.3)',
+  },
+  bonusText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FF9600',
+  },
+  questList: {
+    gap: 8,
+  },
+  questItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#131F24',
+    padding: 12,
+    borderRadius: 12,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#1A2C34',
+  },
+  questCheckbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#58CC02',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  questCheckboxDone: {
+    backgroundColor: '#58CC02',
+  },
+  questContent: {
+    flex: 1,
+  },
+  questTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  questTextDone: {
+    textDecorationLine: 'line-through',
+    color: '#6B7280',
+  },
+  questProject: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 2,
+  },
 });

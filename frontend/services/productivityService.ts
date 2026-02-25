@@ -28,7 +28,18 @@ export interface TaskPathGroup {
     title: string;
     status: string;
     nodeNumber: number;
+    planned_date?: string | null;
   }>;
+}
+
+export interface DailyQuest {
+  id: string;
+  title: string;
+  projectId: string;
+  projectName: string;
+  status: string;
+  isPlanned: boolean;
+  priority: number;
 }
 
 export interface LogWorkRequest {
@@ -118,6 +129,28 @@ export const productivityService = {
       return response.data;
     } catch (error) {
       console.error('Error fetching task path:', error);
+      throw error;
+    }
+  },
+
+  // Get daily quests (planned + suggested)
+  async getDailyQuests(): Promise<DailyQuest[]> {
+    try {
+      const response = await api.get('/productivity/daily-quests');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching daily quests:', error);
+      throw error;
+    }
+  },
+
+  // Plan a task or set project priority
+  async planQuest(params: { taskId?: string, plannedDate?: string, projectId?: string, priority?: number }) {
+    try {
+      const response = await api.post('/productivity/daily-quests/plan', params);
+      return response.data;
+    } catch (error) {
+      console.error('Error planning quest:', error);
       throw error;
     }
   },

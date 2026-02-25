@@ -13,6 +13,7 @@ export interface Project {
   description: string;
   category_id: string;
   status: string;
+  priority: number;
   created_at: string;
 }
 
@@ -24,6 +25,7 @@ export interface Task {
   status: string;
   assignee: string;
   due_date: string;
+  planned_date?: string | null;
 }
 
 export const projectService = {

@@ -31,7 +31,7 @@ router.get('/', async (req: Request, res: Response) => {
 
         const { data: projects, error: projectsError } = await supabaseAdmin
             .from('projects')
-            .select('id, name, description, category_id, status, created_at, updated_at')
+            .select('id, name, description, category_id, status, priority, created_at, updated_at')
             .in('category_id', categoryIds);
 
         if (projectsError) throw projectsError;
@@ -58,13 +58,21 @@ router.get('/', async (req: Request, res: Response) => {
             }
         }
 
-        // Sort: most recently logged first, then by created_at
+        // Sort: Priority (starred) first, then by most recently logged, then by created_at
         const sortedProjects = [...projects].sort((a: any, b: any) => {
+            // 1. Sort by priority (starred first)
+            const aPriority = a.priority || 0;
+            const bPriority = b.priority || 0;
+            if (aPriority !== bPriority) return bPriority - aPriority;
+
+            // 2. Sort by last activity
             const aTime = lastActivityMap[a.id] || '';
             const bTime = lastActivityMap[b.id] || '';
             if (bTime && !aTime) return 1;
             if (aTime && !bTime) return -1;
             if (aTime && bTime) return bTime.localeCompare(aTime);
+
+            // 3. Fallback to created_at
             return b.created_at.localeCompare(a.created_at);
         });
 
@@ -85,7 +93,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
         const { data, error } = await supabaseAdmin
             .from('projects')
-            .select('id, name, description, category_id, status, created_at, updated_at')
+            .select('id, name, description, category_id, status, priority, created_at, updated_at')
             .eq('id', req.params.id)
             .in('category_id', categoryIds)
             .single();
@@ -125,7 +133,7 @@ router.get('/:projectId/tasks', async (req: Request, res: Response) => {
 
         const { data, error } = await supabaseAdmin
             .from('tasks')
-            .select('id, project_id, title, description, status, assignee, due_date, created_at')
+            .select('id, project_id, title, description, status, assignee, due_date, planned_date, created_at')
             .eq('project_id', req.params.projectId)
             .order('created_at', { ascending: true });
 

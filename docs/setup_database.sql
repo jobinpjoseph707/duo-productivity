@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS projects (
     staging_repo TEXT,
     vercel_deployed_link TEXT,
     status TEXT DEFAULT 'active',
+    priority INTEGER DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ
 );
@@ -34,6 +35,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     title TEXT NOT NULL,
     description TEXT,
     status TEXT DEFAULT 'todo',
+    planned_date DATE DEFAULT NULL,
     assignee TEXT,
     due_date TEXT,
     created_at TIMESTAMPTZ DEFAULT now(),

@@ -71,6 +71,113 @@ router.get('/dashboard', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/productivity/daily-quests
+ * Returns tasks planned for today, or suggestions based on priority.
+ */
+router.get('/daily-quests', async (req: Request, res: Response) => {
+    try {
+        const userId = req.userId!;
+        const today = getLocalDateString();
+        console.log(`[DailyQuests] Fetching for user ${userId}, today=${today}`);
+
+        // 1. Get user's accessible categories
+        const { data: accessData } = await supabaseAdmin
+            .from('user_category_access')
+            .select('category_id')
+            .eq('user_id', userId);
+
+        const categoryIds = (accessData || []).map((r: any) => r.category_id);
+        if (categoryIds.length === 0) {
+            console.log(`[DailyQuests] No categories found for user ${userId}`);
+            res.json([]);
+            return;
+        }
+
+        // 2. Get planned tasks for today
+        const { data: plannedTasks } = await supabaseAdmin
+            .from('tasks')
+            .select('*, projects!inner(name, priority)')
+            .eq('planned_date', today)
+            .in('projects.category_id', categoryIds)
+            .neq('status', 'completed');
+
+        console.log(`[DailyQuests] Found ${plannedTasks?.length || 0} planned tasks for ${today}`);
+
+        let results = (plannedTasks || []).map((t: any) => ({
+            id: t.id,
+            title: t.title,
+            projectId: t.project_id,
+            projectName: t.projects.name,
+            status: t.status,
+            isPlanned: true,
+            priority: t.projects.priority || 0
+        }));
+
+        // 3. If fewer than 3, suggest some from priority projects
+        if (results.length < 3) {
+            const { data: suggestions } = await supabaseAdmin
+                .from('tasks')
+                .select('*, projects!inner(name, priority)')
+                .in('projects.category_id', categoryIds)
+                .neq('status', 'completed')
+                .is('planned_date', null)
+                .order('priority', { foreignTable: 'projects', ascending: false })
+                .order('created_at', { ascending: true })
+                .limit(3 - results.length);
+
+            if (suggestions) {
+                const mappedSuggestions = suggestions.map((t: any) => ({
+                    id: t.id,
+                    title: t.title,
+                    projectId: t.project_id,
+                    projectName: t.projects.name,
+                    status: t.status,
+                    isPlanned: false,
+                    priority: t.projects.priority || 0
+                }));
+                results = [...results, ...mappedSuggestions];
+            }
+        }
+
+        res.json(results);
+    } catch (error: any) {
+        console.error('Error fetching daily quests:', error.message);
+        res.status(500).json({ error: 'Failed to fetch daily quests' });
+    }
+});
+
+/**
+ * POST /api/productivity/daily-quests/plan
+ * Plan a task for a specific date or set project priority.
+ */
+router.post('/daily-quests/plan', async (req: Request, res: Response) => {
+    try {
+        const { taskId, plannedDate, projectId, priority } = req.body;
+
+        if (taskId) {
+            const { error } = await supabaseAdmin
+                .from('tasks')
+                .update({ planned_date: plannedDate || null, updated_at: new Date().toISOString() })
+                .eq('id', taskId);
+            if (error) throw error;
+        }
+
+        if (projectId && priority !== undefined) {
+            const { error } = await supabaseAdmin
+                .from('projects')
+                .update({ priority, updated_at: new Date().toISOString() })
+                .eq('id', projectId);
+            if (error) throw error;
+        }
+
+        res.json({ success: true });
+    } catch (error: any) {
+        console.error('Error planning quest:', error.message);
+        res.status(500).json({ error: 'Failed to update plan' });
+    }
+});
+
+/**
  * GET /api/productivity/path
  * Returns tasks from all user-accessible projects for the Duolingo-style path.
  */
@@ -183,12 +290,36 @@ router.post('/log', async (req: Request, res: Response) => {
         const currentStreak = profile?.streak_count || 0;
         const lastActivity = profile?.last_activity_date || null;
 
+        // Calculate quest bonus
+        let questBonus = 0;
+        if (taskId) {
+            const today = getLocalDateString();
+            const { data: task } = await supabaseAdmin
+                .from('tasks')
+                .select('planned_date, status')
+                .eq('id', taskId)
+                .single();
+
+            if (task && task.planned_date === today) {
+                questBonus = GamificationEngine.calculateQuestBonus();
+            }
+
+            // Update task status if completed
+            if (req.body.completed) {
+                await supabaseAdmin
+                    .from('tasks')
+                    .update({ status: 'completed', updated_at: new Date().toISOString() })
+                    .eq('id', taskId);
+            }
+        }
+
         // Calculate streak
         const streakResult = GamificationEngine.evaluateStreak(lastActivity, currentStreak);
 
         // Calculate XP
         const xpCalc = GamificationEngine.calculateWorkLogXP(!!taskId, streakResult.streakCount);
-        const xpResult = GamificationEngine.awardXP(currentXP, xpCalc.total);
+        const totalXPToAward = xpCalc.total + questBonus;
+        const xpResult = GamificationEngine.awardXP(currentXP, totalXPToAward);
 
         // Insert work log
         const { data: workLog, error: logError } = await supabaseAdmin
@@ -198,7 +329,7 @@ router.post('/log', async (req: Request, res: Response) => {
                 project_id: projectId || null,
                 task_id: taskId || null,
                 log_text: logText,
-                xp_awarded: xpCalc.total,
+                xp_awarded: totalXPToAward,
             })
             .select()
             .single();

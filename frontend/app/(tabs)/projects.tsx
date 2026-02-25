@@ -1,11 +1,18 @@
 import { PathNode } from '@/components/gamification/PathNode';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
+import { useDailyQuests } from '@/hooks/useDailyQuests';
 import { useCategories, useProjects, useProjectTasks } from '@/hooks/useProjects';
 import { useAppStore } from '@/stores/appStore';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+
+/** Get today's date as YYYY-MM-DD in local timezone */
+function getLocalDateString(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
 
 export default function ProjectsScreen() {
   const { data: projects, isLoading: isProjectsLoading } = useProjects();
@@ -14,10 +21,24 @@ export default function ProjectsScreen() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [showAllTasks, setShowAllTasks] = useState(false);
   const { data: tasks, isLoading: isTasksLoading } = useProjectTasks(selectedProjectId);
+  const { planQuest } = useDailyQuests();
   const activeProjectId = useAppStore((state) => state.activeProjectId);
   const activeTaskId = useAppStore((state) => state.activeTaskId);
   const setActiveProjectId = useAppStore((state) => state.setActiveProjectId);
   const setActiveTaskId = useAppStore((state) => state.setActiveTaskId);
+  const showNotification = useAppStore((state) => state.showNotification);
+
+  const handleSetPriority = async (projectId: string, currentPriority: number) => {
+    const newPriority = currentPriority > 0 ? 0 : 1;
+    await planQuest({ projectId, priority: newPriority });
+    showNotification(newPriority > 0 ? 'Project prioritized!' : 'Priority removed', 'info');
+  };
+
+  const handlePlanTask = async (taskId: string) => {
+    const today = getLocalDateString();
+    await planQuest({ taskId, plannedDate: today });
+    showNotification('Task planned for today!', 'success');
+  };
 
   // Sync with store state (from dashboard navigation)
   useEffect(() => {
@@ -127,12 +148,24 @@ export default function ProjectsScreen() {
             >
               <View style={styles.projectInfo}>
                 <Text style={styles.projectName}>{item.name}</Text>
-                <Text style={styles.projectDesc}>{item.description}</Text>
+                <Text style={styles.projectDesc} numberOfLines={1}>{item.description}</Text>
               </View>
-              <Badge
-                label={item.status}
-                variant={item.status === 'active' ? 'success' : 'warning'}
-              />
+              <View style={styles.projectListMeta}>
+                <TouchableOpacity
+                  onPress={() => handleSetPriority(item.id, item.priority || 0)}
+                  style={styles.priorityBtn}
+                >
+                  <MaterialIcons
+                    name={item.priority > 0 ? "star" : "star-border"}
+                    size={22}
+                    color={item.priority > 0 ? "#FF9600" : "#6B7280"}
+                  />
+                </TouchableOpacity>
+                <Badge
+                  label={item.status}
+                  variant={item.status === 'active' ? 'success' : 'warning'}
+                />
+              </View>
             </TouchableOpacity>
           )}
           ListEmptyComponent={
@@ -149,7 +182,7 @@ export default function ProjectsScreen() {
           <View style={styles.projectHeader}>
             <View>
               <Text style={styles.projectTitle}>{selectedProject.name}</Text>
-              <Text style={styles.projectMeta}>
+              <Text style={styles.projectHeaderMeta}>
                 {completedCount} of {projectTasks.length} tasks
               </Text>
             </View>
@@ -223,9 +256,18 @@ export default function ProjectsScreen() {
                   {task.description && (
                     <Text style={styles.taskDesc}>{task.description}</Text>
                   )}
-                  {task.due_date && (
-                    <Text style={styles.taskDate}>Due: {task.due_date}</Text>
-                  )}
+                  <View style={styles.taskFooter}>
+                    <TouchableOpacity
+                      style={styles.planBtn}
+                      onPress={() => handlePlanTask(task.id)}
+                    >
+                      <MaterialIcons name="calendar-today" size={14} color="#58CC02" />
+                      <Text style={styles.planBtnText}>Plan for Today</Text>
+                    </TouchableOpacity>
+                    {task.status !== 'completed' && (
+                      <Text style={styles.taskStatus}>{task.status}</Text>
+                    )}
+                  </View>
                 </View>
                 <Badge
                   label={task.status}
@@ -374,7 +416,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginBottom: 4,
   },
-  projectMeta: {
+  projectHeaderMeta: {
     fontSize: 13,
     color: '#6B7280',
   },
@@ -470,5 +512,38 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#58CC02',
+  },
+  priorityBtn: {
+    padding: 4,
+  },
+  projectListMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  taskFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  planBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(88, 204, 2, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  planBtnText: {
+    fontSize: 11,
+    color: '#58CC02',
+    fontWeight: '700',
+  },
+  taskStatus: {
+    fontSize: 11,
+    color: '#6B7280',
+    textTransform: 'capitalize',
   },
 });

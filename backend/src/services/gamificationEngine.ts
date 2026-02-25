@@ -40,6 +40,13 @@ export class GamificationEngine {
     }
 
     /**
+     * Calculate Quest bonus XP.
+     */
+    static calculateQuestBonus(): number {
+        return 50; // Fixed bonus for completing a daily quest
+    }
+
+    /**
      * Calculate level from total XP.
      */
     static calculateLevel(totalXP: number): number {
