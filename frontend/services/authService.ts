@@ -65,10 +65,25 @@ export const authService = {
   // Reset password
   async resetPassword(email: string) {
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'duoproductivityapp://reset-password',
+      });
       if (error) throw error;
     } catch (error) {
       console.error('Password reset error:', error);
+      throw error;
+    }
+  },
+
+  // Update password (called after clicking reset link)
+  async updatePassword(newPassword: string) {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+      if (error) throw error;
+    } catch (error) {
+      console.error('Password update error:', error);
       throw error;
     }
   },

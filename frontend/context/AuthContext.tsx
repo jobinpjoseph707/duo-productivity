@@ -56,6 +56,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             (_event, session) => {
                 console.log('Auth State Change Event:', _event);
+
+                // Handle password recovery deep link
+                if (_event === 'PASSWORD_RECOVERY') {
+                    console.log('AuthProvider: PASSWORD_RECOVERY event detected, navigating to reset screen');
+                    // Use dynamic import to avoid circular dependency
+                    import('expo-router').then(({ router }) => {
+                        router.replace('/(auth)/reset-password');
+                    });
+                    return;
+                }
+
                 if (session?.user) {
                     console.log('AuthProvider: User detected in onAuthStateChange');
                     setUser({
