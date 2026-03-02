@@ -12,8 +12,8 @@ interface AppState {
   isLogWorkModalOpen: boolean;
   setLogWorkModalOpen: (isOpen: boolean) => void;
 
-  isTimeAllocationModalOpen: boolean;
-  setTimeAllocationModalOpen: (isOpen: boolean) => void;
+  isRoutineModalOpen: boolean;
+  setRoutineModalOpen: (isOpen: boolean) => void;
 
   // Notifications
   notification: {
@@ -38,7 +38,7 @@ interface AppState {
 const initialState = {
   isAuthModalOpen: false,
   isLogWorkModalOpen: false,
-  isTimeAllocationModalOpen: false,
+  isRoutineModalOpen: false,
   activeProjectId: null,
   activeTaskId: null,
 };
@@ -53,7 +53,7 @@ export const useAppStore = create<AppState>((set) => ({
   // Modal states
   setAuthModalOpen: (isOpen) => set({ isAuthModalOpen: isOpen }),
   setLogWorkModalOpen: (isOpen) => set({ isLogWorkModalOpen: isOpen }),
-  setTimeAllocationModalOpen: (isOpen) => set({ isTimeAllocationModalOpen: isOpen }),
+  setRoutineModalOpen: (isOpen) => set({ isRoutineModalOpen: isOpen }),
 
   // Notifications
   notification: null,

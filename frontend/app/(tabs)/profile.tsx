@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useDashboard';
+import { useNotifications } from '@/hooks/useNotificationsApi';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -10,6 +11,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const { data: profile, isLoading } = useUserProfile();
+  const { unreadCount } = useNotifications();
 
   const handleLogout = async () => {
     console.log('ProfileScreen: handleLogout called', { platform: Platform.OS });
@@ -132,9 +134,17 @@ export default function ProfileScreen() {
       <Card className="mb-lg">
         <Text style={styles.sectionTitle}>Settings</Text>
         <View style={styles.settingsList}>
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => router.push('/(tabs)/notifications')}
+          >
             <MaterialIcons name="notifications" size={20} color="#58CC02" />
             <Text style={styles.settingLabel}>Notifications</Text>
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{unreadCount}</Text>
+              </View>
+            )}
             <MaterialIcons name="chevron-right" size={20} color="#6B7280" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.settingItem}>
@@ -310,6 +320,21 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
     marginTop: 12,
+  },
+  badge: {
+    backgroundColor: '#FF4B4B',
+    borderRadius: 12,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    marginRight: 8,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   spacing: {
     height: 20,

@@ -1,10 +1,8 @@
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
-import { authService } from "@/services/authService";
 import { Link, useRouter } from "expo-router";
 import { useState } from "react";
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -105,33 +103,10 @@ export default function LoginScreen() {
           <TouchableOpacity
             style={styles.forgotButton}
             onPress={() => {
-              Alert.prompt
-                ? Alert.prompt(
-                  "Reset Password",
-                  "Enter your email to receive a reset link:",
-                  async (resetEmail: string) => {
-                    if (resetEmail?.trim()) {
-                      try {
-                        await authService.resetPassword(resetEmail.trim());
-                        Alert.alert(
-                          "Email Sent",
-                          "Check your inbox for the password reset link."
-                        );
-                      } catch (err: any) {
-                        Alert.alert(
-                          "Error",
-                          err.message || "Failed to send reset email."
-                        );
-                      }
-                    }
-                  },
-                  "plain-text",
-                  email
-                )
-                : Alert.alert(
-                  "Reset Password",
-                  "Please use the Supabase dashboard or contact support to reset your password."
-                );
+              router.push({
+                pathname: "/(auth)/forgot-password",
+                params: { email: email.trim() || undefined },
+              });
             }}
           >
             <Text style={styles.forgotText}>Forgot password?</Text>

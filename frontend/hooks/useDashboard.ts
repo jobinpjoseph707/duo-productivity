@@ -1,5 +1,5 @@
+import { DashboardData, productivityService, UserProfile } from '@/services/productivityService';
 import { useQuery, UseQueryResult } from '@tanstack/react-query';
-import { productivityService, DashboardData, UserProfile } from '@/services/productivityService';
 
 export function useDashboard(): UseQueryResult<DashboardData, Error> {
   return useQuery({
@@ -20,10 +20,18 @@ export function useUserProfile(): UseQueryResult<UserProfile, Error> {
   });
 }
 
-export function useWorkLogs(limit: number = 10) {
+export function useWorkLogs(limit: number = 10, date?: string) {
   return useQuery({
-    queryKey: ['work-logs', limit],
-    queryFn: () => productivityService.getWorkLogs(limit),
+    queryKey: ['work-logs', limit, date],
+    queryFn: () => productivityService.getWorkLogs(limit, date),
     staleTime: 2 * 60 * 1000,
+  });
+}
+
+export function useProductivityStats() {
+  return useQuery({
+    queryKey: ['productivity-stats'],
+    queryFn: () => productivityService.getProductivityStats(),
+    staleTime: 5 * 60 * 1000,
   });
 }

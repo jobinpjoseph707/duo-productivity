@@ -1,5 +1,6 @@
 import { PathNode } from "@/components/gamification/PathNode";
 import { XPProgressBar } from "@/components/gamification/XPProgressBar";
+import { RoutineModal } from "@/components/timeline/RoutineModal";
 import { Card } from "@/components/ui/Card";
 import { useDailyQuests } from "@/hooks/useDailyQuests";
 import {
@@ -10,6 +11,7 @@ import { useTaskPath } from "@/hooks/useTaskPath";
 import { useAppStore } from "@/stores/appStore";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useRouter } from "expo-router";
+import { useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -26,6 +28,7 @@ export default function DashboardScreen() {
   const { quests } = useDailyQuests();
   const setLogWorkModalOpen = useAppStore((state) => state.setLogWorkModalOpen);
   const router = useRouter();
+  const [isRoutineModalOpen, setRoutineModalOpen] = useState(false);
 
   const isLoading = isDashboardLoading || isProfileLoading;
 
@@ -97,9 +100,7 @@ export default function DashboardScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.actionBtn, styles.actionBtnSecondary]}
-          onPress={() =>
-            useAppStore.setState({ isTimeAllocationModalOpen: true })
-          }
+          onPress={() => setRoutineModalOpen(true)}
         >
           <MaterialIcons name="schedule" size={20} color="#58CC02" />
           <Text style={[styles.actionBtnText, styles.actionBtnTextSecondary]}>
@@ -214,7 +215,7 @@ export default function DashboardScreen() {
               <View key={idx} style={styles.timeRow}>
                 <Text style={styles.timeCat}>{a.categoryName}</Text>
                 <View style={styles.timeBarTrack}>
-                  <View style={[styles.timeBarFill, { width: `${pct}%` }]} />
+                  <View style={[styles.timeBarFill, { width: `${pct}%`, backgroundColor: a.color || '#58CC02' }]} />
                 </View>
                 <Text style={styles.timeLabel}>
                   {a.spentMinutes}/{a.allocatedMinutes} min
@@ -254,6 +255,11 @@ export default function DashboardScreen() {
       )}
 
       <View style={styles.spacing} />
+
+      <RoutineModal
+        visible={isRoutineModalOpen}
+        onClose={() => setRoutineModalOpen(false)}
+      />
     </ScrollView>
   );
 }

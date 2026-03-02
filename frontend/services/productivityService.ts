@@ -1,5 +1,16 @@
 import api from './api';
 
+export interface WorkLogEntry {
+  id: string;
+  projectId?: string;
+  taskId?: string;
+  taskTitle?: string | null;
+  routineId?: string;
+  logText: string;
+  xpAwarded: number;
+  createdAt: string;
+}
+
 export interface DashboardData {
   totalXP: number;
   level: number;
@@ -8,16 +19,13 @@ export interface DashboardData {
   streak: number;
   streakFrozen: boolean;
   timeAllocations: Array<{
+    id: string;
     categoryName: string;
+    color: string;
     allocatedMinutes: number;
     spentMinutes: number;
   }>;
-  recentLogs: Array<{
-    id: string;
-    logText: string;
-    xpAwarded: number;
-    createdAt: string;
-  }>;
+  recentLogs: WorkLogEntry[];
 }
 
 export interface TaskPathGroup {
@@ -45,9 +53,9 @@ export interface DailyQuest {
 export interface LogWorkRequest {
   projectId?: string;
   taskId?: string;
+  routineId?: string;
   logText: string;
   timeSpentMinutes?: number;
-  categoryName?: string;
 }
 
 export interface UserProfile {
@@ -61,7 +69,25 @@ export interface UserProfile {
   streak_frozen: boolean;
 }
 
+export interface ProductivityStats {
+  activityGrid: Record<string, number>;
+  streak: number;
+  totalXp: number;
+  level: number;
+}
+
 export const productivityService = {
+  // Get productivity stats
+  async getProductivityStats(): Promise<ProductivityStats> {
+    try {
+      const response = await api.get('/productivity/stats');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching productivity stats:', error);
+      throw error;
+    }
+  },
+
   // Get dashboard data
   async getDashboard(): Promise<DashboardData> {
     try {
@@ -84,19 +110,7 @@ export const productivityService = {
     }
   },
 
-  // Update time allocations
-  async updateTimeAllocation(categoryName: string, allocatedMinutes: number) {
-    try {
-      const response = await api.post('/productivity/allocations', {
-        categoryName,
-        allocatedMinutes,
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error updating time allocation:', error);
-      throw error;
-    }
-  },
+
 
   // Get user profile/gamification data
   async getUserProfile(): Promise<UserProfile> {
@@ -110,11 +124,11 @@ export const productivityService = {
   },
 
   // Get work logs
-  async getWorkLogs(limit: number = 10) {
+  async getWorkLogs(limit: number = 10, date?: string): Promise<WorkLogEntry[]> {
     try {
-      const response = await api.get('/productivity/logs', {
-        params: { limit },
-      });
+      const params: Record<string, any> = { limit };
+      if (date) params.date = date;
+      const response = await api.get('/productivity/logs', { params });
       return response.data;
     } catch (error) {
       console.error('Error fetching work logs:', error);

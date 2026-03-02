@@ -3,8 +3,10 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { authMiddleware } from './middleware/auth';
 import categoriesRouter from './routes/categories';
+import notificationsRouter from './routes/notifications';
 import productivityRouter from './routes/productivity';
 import projectsRouter from './routes/projects';
+import timelineRouter from './routes/timeline';
 
 // Load environment variables
 dotenv.config();
@@ -34,6 +36,8 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/projects', authMiddleware, projectsRouter);
 app.use('/api/productivity', authMiddleware, productivityRouter);
 app.use('/api/categories', authMiddleware, categoriesRouter);
+app.use('/api/timeline', authMiddleware, timelineRouter);
+app.use('/api/notifications', authMiddleware, notificationsRouter);
 
 // Task status update lives under projects router but needs its own mount
 // because frontend calls PATCH /api/tasks/:id (not /api/projects/tasks/:id)
@@ -70,7 +74,7 @@ app.use((_req, res) => {
 });
 
 // ─── Start Server ────────────────────────────────────────────
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n🚀 DuoProductivity API running on http://localhost:${PORT}`);
     console.log(`📋 Health check: http://localhost:${PORT}/api/health`);
     console.log(`🔑 Auth: JWT via Supabase\n`);

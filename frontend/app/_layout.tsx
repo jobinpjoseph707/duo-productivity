@@ -8,10 +8,10 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { LogWorkModal } from '@/components/modals/LogWorkModal';
-import { TimeAllocationModal } from '@/components/modals/TimeAllocationModal';
 import { NotificationToast } from '@/components/ui/NotificationToast';
 import { useColorScheme } from '@/components/useColorScheme';
 import { AuthProvider } from '@/context/AuthContext';
+import { NotificationsProvider } from '@/context/NotificationsProvider';
 import { useAuth } from '@/hooks/useAuth';
 import { initializeSupabaseListeners } from '@/services/supabaseClient';
 import { useRouter, useSegments } from 'expo-router';
@@ -68,11 +68,12 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <RootLayoutNav />
-        {/* App-wide modals and toast */}
-        <LogWorkModal />
-        <TimeAllocationModal />
-        <NotificationToast />
+        <NotificationsProvider>
+          <RootLayoutNav />
+          {/* App-wide modals and toast */}
+          <LogWorkModal />
+          <NotificationToast />
+        </NotificationsProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

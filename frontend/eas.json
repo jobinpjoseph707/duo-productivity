@@ -1,0 +1,25 @@
+{
+    "cli": {
+        "version": ">= 13.0.0",
+        "appVersionSource": "remote"
+    },
+    "build": {
+        "development": {
+            "developmentClient": true,
+            "distribution": "internal"
+        },
+        "preview": {
+            "distribution": "internal",
+            "env": {
+                "EXPO_PUBLIC_API_URL": "https://duo-productivity-api.onrender.com/api"
+            },
+            "android": {
+                "buildType": "apk"
+            }
+        },
+        "production": {}
+    },
+    "submit": {
+        "production": {}
+    }
+}

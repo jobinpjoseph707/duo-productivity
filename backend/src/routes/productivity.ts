@@ -18,29 +18,68 @@ router.get('/dashboard', async (req: Request, res: Response) => {
     try {
         const userId = req.userId!;
 
-        // Use supabaseAdmin to bypass RLS for profile/allocations/logs
-        const [profileResult, allocationsResult, logsResult] = await Promise.all([
+        // Use supabaseAdmin to bypass RLS for profile/routines/logs
+        const [profileResult, routinesResult, logsResult] = await Promise.all([
             supabaseAdmin
                 .from('user_profiles')
                 .select('*')
                 .eq('id', userId)
                 .single(),
             supabaseAdmin
-                .from('time_allocations')
+                .from('routines')
                 .select('*')
                 .eq('user_id', userId)
-                .eq('date', getLocalDateString()),
+                .eq('is_active', true),
             supabaseAdmin
                 .from('work_logs')
-                .select('id, log_text, xp_awarded, created_at')
+                .select('id, log_text, xp_awarded, created_at, routine_id')
                 .eq('user_id', userId)
                 .order('created_at', { ascending: false })
-                .limit(10),
+                .limit(50), // grab more to aggregate today's time accurately
         ]);
 
         const profile = profileResult.data;
-        const allocations = allocationsResult.data || [];
+        const routines = routinesResult.data || [];
         const recentLogs = logsResult.data || [];
+
+        // Aggregate today's time spent per routine
+        const todayStr = getLocalDateString();
+        const spentMinutesMap: Record<string, number> = {};
+        for (const log of recentLogs) {
+            // only count logs from today
+            if (log.created_at.startsWith(todayStr) && log.routine_id) {
+                // Approximate time spent from logs (if we eventually store duration in logs, use that)
+                // For now, let's assume each log without explicit time is 30 mins, or read from a future `duration_minutes` column if added.
+                // We will add `duration_minutes` to work_logs in the future, for now mock it to 30.
+                spentMinutesMap[log.routine_id] = (spentMinutesMap[log.routine_id] || 0) + 30;
+            }
+        }
+
+        const timeAllocations = routines.map((r: any) => {
+            // Calculate allocated time from start_time to end_time
+            const startStr = r.start_time; // "09:00:00"
+            const endStr = r.end_time;     // "10:30:00"
+
+            let allocatedMinutes = 0;
+            if (startStr && endStr) {
+                const [sh, sm] = startStr.split(':').map(Number);
+                const [eh, em] = endStr.split(':').map(Number);
+                allocatedMinutes = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0));
+
+                // Handle midnight wraparound (e.g. 23:00 to 01:00)
+                if (allocatedMinutes < 0) {
+                    allocatedMinutes += 24 * 60;
+                }
+            }
+
+            return {
+                id: r.id,
+                categoryName: r.title,
+                color: r.color,
+                allocatedMinutes: allocatedMinutes > 0 ? allocatedMinutes : 60,
+                spentMinutes: spentMinutesMap[r.id] || 0,
+            };
+        });
 
         // If no profile yet, return defaults
         const levelProgress = GamificationEngine.levelProgress(profile?.total_xp || 0);
@@ -52,12 +91,8 @@ router.get('/dashboard', async (req: Request, res: Response) => {
             xpForNextLevel: levelProgress.nextLevelXP,
             streak: profile?.streak_count || 0,
             streakFrozen: profile?.streak_frozen || false,
-            timeAllocations: allocations.map((a: any) => ({
-                categoryName: a.category_name,
-                allocatedMinutes: a.allocated_minutes,
-                spentMinutes: a.spent_minutes,
-            })),
-            recentLogs: recentLogs.map((l: any) => ({
+            timeAllocations: timeAllocations,
+            recentLogs: recentLogs.slice(0, 10).map((l: any) => ({
                 id: l.id,
                 logText: l.log_text,
                 xpAwarded: l.xp_awarded,
@@ -272,7 +307,7 @@ router.get('/path', async (req: Request, res: Response) => {
 router.post('/log', async (req: Request, res: Response) => {
     try {
         const userId = req.userId!;
-        const { projectId, taskId, logText, timeSpentMinutes, categoryName } = req.body;
+        const { projectId, taskId, routineId, logText, timeSpentMinutes } = req.body;
 
         if (!logText) {
             res.status(400).json({ error: 'logText is required' });
@@ -328,6 +363,8 @@ router.post('/log', async (req: Request, res: Response) => {
                 user_id: userId,
                 project_id: projectId || null,
                 task_id: taskId || null,
+                routine_id: routineId || null,
+                duration_minutes: timeSpentMinutes || 30, // Default to 30 mins if not provided
                 log_text: logText,
                 xp_awarded: totalXPToAward,
             })
@@ -349,23 +386,7 @@ router.post('/log', async (req: Request, res: Response) => {
 
         if (profileError) throw profileError;
 
-        // If time tracking, update spent_minutes on allocations
-        if (timeSpentMinutes && categoryName) {
-            const today = getLocalDateString();
-            try {
-                const { error: rpcError } = await supabaseAdmin.rpc('increment_spent_minutes', {
-                    p_user_id: userId,
-                    p_date: today,
-                    p_minutes: timeSpentMinutes,
-                    p_category_name: categoryName,
-                });
-                if (rpcError) {
-                    console.warn('increment_spent_minutes RPC not available:', rpcError.message);
-                }
-            } catch (e: any) {
-                console.warn('increment_spent_minutes RPC not available:', e.message);
-            }
-        }
+
 
         res.json({
             workLog: {
@@ -390,59 +411,7 @@ router.post('/log', async (req: Request, res: Response) => {
     }
 });
 
-/**
- * POST /api/productivity/allocations
- * Set or update today's time allocation for a category.
- */
-router.post('/allocations', async (req: Request, res: Response) => {
-    try {
-        const userId = req.userId!;
-        const { categoryName, allocatedMinutes } = req.body;
 
-        if (!categoryName || allocatedMinutes === undefined) {
-            res.status(400).json({ error: 'categoryName and allocatedMinutes are required' });
-            return;
-        }
-
-        const today = getLocalDateString();
-
-        // Upsert: update if exists for today, insert if not
-        const { data: existing } = await supabaseAdmin
-            .from('time_allocations')
-            .select('id')
-            .eq('user_id', userId)
-            .eq('category_name', categoryName)
-            .eq('date', today)
-            .single();
-
-        let result;
-        if (existing) {
-            result = await supabaseAdmin
-                .from('time_allocations')
-                .update({ allocated_minutes: allocatedMinutes })
-                .eq('id', existing.id)
-                .select()
-                .single();
-        } else {
-            result = await supabaseAdmin
-                .from('time_allocations')
-                .insert({
-                    user_id: userId,
-                    category_name: categoryName,
-                    allocated_minutes: allocatedMinutes,
-                    date: today,
-                })
-                .select()
-                .single();
-        }
-
-        if (result.error) throw result.error;
-        res.json(result.data);
-    } catch (error: any) {
-        console.error('Error updating allocation:', error.message);
-        res.status(500).json({ error: 'Failed to update time allocation' });
-    }
-});
 
 /**
  * GET /api/productivity/profile
@@ -483,18 +452,76 @@ router.get('/profile', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/productivity/stats
+ * Returns activity grid data and streak statistics.
+ */
+router.get('/stats', async (req: Request, res: Response) => {
+    try {
+        const userId = req.userId!;
+        const days = 90;
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
+        const startDateStr = startDate.toISOString();
+
+        // 1. Get XP per day for the grid
+        const { data: logs, error: logsError } = await supabaseAdmin
+            .from('work_logs')
+            .select('xp_awarded, created_at')
+            .eq('user_id', userId)
+            .gte('created_at', startDateStr);
+
+        if (logsError) throw logsError;
+
+        const activityMap: Record<string, number> = {};
+        logs?.forEach((log: any) => {
+            const date = log.created_at.split('T')[0];
+            activityMap[date] = (activityMap[date] || 0) + log.xp_awarded;
+        });
+
+        // 2. Get profile for streak
+        const { data: profile, error: profileError } = await supabaseAdmin
+            .from('user_profiles')
+            .select('streak_count, total_xp, level')
+            .eq('id', userId)
+            .single();
+
+        if (profileError && profileError.code !== 'PGRST116') throw profileError;
+
+        res.json({
+            activityGrid: activityMap,
+            streak: profile?.streak_count || 0,
+            totalXp: profile?.total_xp || 0,
+            level: profile?.level || 1,
+        });
+    } catch (error: any) {
+        console.error('Error fetching stats:', error.message);
+        res.status(500).json({ error: 'Failed to fetch stats' });
+    }
+});
+
+/**
  * GET /api/productivity/logs
  * Get work logs for current user. ?limit=N to control count.
  */
 router.get('/logs', async (req: Request, res: Response) => {
     try {
         const userId = req.userId!;
-        const limit = parseInt(req.query.limit as string) || 10;
+        const limit = parseInt(req.query.limit as string) || 50;
+        const dateParam = req.query.date as string; // Optional YYYY-MM-DD
 
-        const { data, error } = await supabaseAdmin
+        let q = supabaseAdmin
             .from('work_logs')
-            .select('id, project_id, task_id, log_text, xp_awarded, created_at')
-            .eq('user_id', userId)
+            .select('id, project_id, task_id, routine_id, log_text, xp_awarded, created_at, tasks(title)')
+            .eq('user_id', userId);
+
+        if (dateParam) {
+            // Filter strictly for the given local date
+            const startOfDay = new Date(`${dateParam}T00:00:00`).toISOString();
+            const endOfDay = new Date(`${dateParam}T23:59:59.999`).toISOString();
+            q = q.gte('created_at', startOfDay).lte('created_at', endOfDay);
+        }
+
+        const { data, error } = await q
             .order('created_at', { ascending: false })
             .limit(limit);
 
@@ -505,6 +532,8 @@ router.get('/logs', async (req: Request, res: Response) => {
             id: l.id,
             projectId: l.project_id,
             taskId: l.task_id,
+            taskTitle: l.tasks?.title || null,
+            routineId: l.routine_id,
             logText: l.log_text,
             xpAwarded: l.xp_awarded,
             createdAt: l.created_at,

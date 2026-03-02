@@ -31,7 +31,7 @@ export function LogWorkModal() {
     );
     const { data: tasks } = useProjectTasks(selectedProjectId);
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+    const [selectedRoutineId, setSelectedRoutineId] = useState<string | null>(null);
     const [logText, setLogText] = useState("");
     const [timeSpent, setTimeSpent] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,9 +39,7 @@ export function LogWorkModal() {
     const queryClient = useQueryClient();
 
     // Active time allocations
-    const activeTimers = dashboard?.timeAllocations?.filter(
-        (a) => a.allocatedMinutes > 0
-    ) || [];
+    const activeTimers = dashboard?.timeAllocations || [];
 
     // Set default project on open
     useEffect(() => {
@@ -53,7 +51,7 @@ export function LogWorkModal() {
     // Auto-select category if only one timer
     useEffect(() => {
         if (isOpen && activeTimers.length === 1) {
-            setSelectedCategory(activeTimers[0].categoryName);
+            setSelectedRoutineId(activeTimers[0].id);
         }
     }, [isOpen, activeTimers.length]);
 
@@ -63,7 +61,7 @@ export function LogWorkModal() {
         setTimeSpent("");
         setSelectedProjectId(null);
         setSelectedTaskId(null);
-        setSelectedCategory(null);
+        setSelectedRoutineId(null);
     };
 
     const handleSubmit = async () => {
@@ -76,7 +74,7 @@ export function LogWorkModal() {
                 taskId: selectedTaskId || undefined,
                 logText: logText.trim(),
                 timeSpentMinutes: timeSpent ? parseInt(timeSpent) : undefined,
-                categoryName: selectedCategory || undefined,
+                routineId: selectedRoutineId || undefined,
             });
 
             // Invalidate related queries
@@ -126,41 +124,41 @@ export function LogWorkModal() {
                                 </Text>
                                 <View style={styles.timerChips}>
                                     {activeTimers.map((timer) => {
-                                        const isSelected = selectedCategory === timer.categoryName;
+                                        const isSelected = selectedRoutineId === timer.id;
                                         const pct = timer.allocatedMinutes > 0
                                             ? Math.round((timer.spentMinutes / timer.allocatedMinutes) * 100)
                                             : 0;
                                         return (
                                             <TouchableOpacity
-                                                key={timer.categoryName}
+                                                key={timer.id}
                                                 style={[
                                                     styles.timerChip,
-                                                    isSelected && styles.timerChipActive,
+                                                    isSelected && { borderColor: timer.color, backgroundColor: `${timer.color}15` },
                                                 ]}
                                                 onPress={() =>
-                                                    setSelectedCategory(
-                                                        isSelected ? null : timer.categoryName
+                                                    setSelectedRoutineId(
+                                                        isSelected ? null : timer.id
                                                     )
                                                 }
                                             >
                                                 <Text
                                                     style={[
                                                         styles.timerChipName,
-                                                        isSelected && styles.timerChipNameActive,
+                                                        isSelected && { color: timer.color },
                                                     ]}
                                                 >
                                                     {timer.categoryName}
                                                 </Text>
-                                                <Text style={styles.timerChipProgress}>
+                                                <Text style={[styles.timerChipProgress, isSelected && { color: timer.color }]}>
                                                     {timer.spentMinutes}/{timer.allocatedMinutes} min ({pct}%)
                                                 </Text>
                                             </TouchableOpacity>
                                         );
                                     })}
                                 </View>
-                                {selectedCategory && (
+                                {selectedRoutineId && (
                                     <Text style={styles.timerHint}>
-                                        ⏱ Time will be added to &quot;{selectedCategory}&quot; timer
+                                        ⏱ Time will be added to the selected routine
                                     </Text>
                                 )}
                             </View>
@@ -289,7 +287,6 @@ export function LogWorkModal() {
                         <View style={styles.fieldGroup}>
                             <Text style={styles.label}>
                                 Time spent (minutes)
-                                {selectedCategory ? ` → ${selectedCategory}` : ""}
                             </Text>
                             <TextInput
                                 style={styles.input}
