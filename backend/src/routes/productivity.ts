@@ -529,7 +529,8 @@ router.post('/streak/restore', async (req: Request, res: Response) => {
                 total_xp: newTotalXP,
                 streak_count: restoredStreak,
                 last_streak_count: 0, // cleared
-                level: newLevel
+                level: newLevel,
+                last_activity_date: getLocalDateString(), // prevent dashboard from re-breaking streak
             })
             .eq('id', userId);
 
