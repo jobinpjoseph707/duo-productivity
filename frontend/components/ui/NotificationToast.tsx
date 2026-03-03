@@ -1,3 +1,4 @@
+import { useTheme } from "@/hooks/useTheme";
 import { useAppStore } from "@/stores/appStore";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useEffect, useRef } from "react";
@@ -5,43 +6,43 @@ import { Animated, Platform, StyleSheet, Text } from "react-native";
 
 const TOAST_DURATION = 3500;
 
-const variantConfig = {
-    success: {
-        icon: "check-circle" as const,
-        bgColor: "#0F4C2F",
-        borderColor: "#58CC02",
-        iconColor: "#58CC02",
-        textColor: "#A7F3D0",
-    },
-    error: {
-        icon: "error" as const,
-        bgColor: "#7F1D1D",
-        borderColor: "#EF4444",
-        iconColor: "#EF4444",
-        textColor: "#FCA5A5",
-    },
-    info: {
-        icon: "info" as const,
-        bgColor: "#1E3A5F",
-        borderColor: "#3B82F6",
-        iconColor: "#3B82F6",
-        textColor: "#93C5FD",
-    },
-};
-
 export function NotificationToast() {
+    const theme = useTheme();
+    const c = theme.colors;
     const notification = useAppStore((state) => state.notification);
     const clearNotification = useAppStore((state) => state.clearNotification);
     const translateY = useRef(new Animated.Value(-100)).current;
     const opacity = useRef(new Animated.Value(0)).current;
 
+    const variantConfig = {
+        success: {
+            icon: "check-circle" as const,
+            bgColor: c.surface,
+            borderColor: c.success,
+            iconColor: c.success,
+            textColor: c.text,
+        },
+        error: {
+            icon: "error" as const,
+            bgColor: c.surface,
+            borderColor: c.error,
+            iconColor: c.error,
+            textColor: c.text,
+        },
+        info: {
+            icon: "info" as const,
+            bgColor: c.surface,
+            borderColor: c.primary,
+            iconColor: c.primary,
+            textColor: c.text,
+        },
+    };
+
     useEffect(() => {
         if (notification) {
-            // Reset position first
             translateY.setValue(-100);
             opacity.setValue(0);
 
-            // Slide in
             Animated.parallel([
                 Animated.spring(translateY, {
                     toValue: 0,
@@ -56,7 +57,6 @@ export function NotificationToast() {
                 }),
             ]).start();
 
-            // Auto dismiss
             const timer = setTimeout(() => {
                 Animated.parallel([
                     Animated.timing(translateY, {

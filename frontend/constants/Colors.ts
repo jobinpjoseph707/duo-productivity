@@ -1,19 +1,23 @@
-const tintColorLight = '#2f95dc';
-const tintColorDark = '#fff';
-
-export default {
+/**
+ * Colors — Legacy compatibility file.
+ * New code should use useTheme() hook from @/hooks/useTheme.
+ * These values match the Solo Leveling default theme.
+ */
+const Colors = {
   light: {
-    text: '#000',
-    background: '#fff',
-    tint: tintColorLight,
-    tabIconDefault: '#ccc',
-    tabIconSelected: tintColorLight,
+    text: '#E2E8F0',
+    background: '#0A0E1A',
+    tint: '#7B61FF',
+    tabIconDefault: '#64748B',
+    tabIconSelected: '#7B61FF',
   },
   dark: {
-    text: '#fff',
-    background: '#000',
-    tint: tintColorDark,
-    tabIconDefault: '#ccc',
-    tabIconSelected: tintColorDark,
+    text: '#E2E8F0',
+    background: '#0A0E1A',
+    tint: '#7B61FF',
+    tabIconDefault: '#64748B',
+    tabIconSelected: '#7B61FF',
   },
 };
+
+export default Colors;

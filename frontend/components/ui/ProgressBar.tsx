@@ -1,3 +1,4 @@
+import { useTheme } from '@/hooks/useTheme';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
@@ -16,10 +17,12 @@ interface ProgressBarProps {
 export function ProgressBar({
   progress,
   height = 8,
-  color = '#58CC02',
+  color,
   label,
   showPercentage = false,
 }: ProgressBarProps) {
+  const theme = useTheme();
+  const barColor = color || theme.colors.secondary;
   const clampedProgress = Math.min(Math.max(progress, 0), 100);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -28,40 +31,23 @@ export function ProgressBar({
 
   return (
     <View style={styles.container}>
-      {label && <Text style={styles.label}>{label}</Text>}
-      <View style={[styles.track, { height }]}>
+      {label && <Text style={[styles.label, { color: theme.colors.textMuted }]}>{label}</Text>}
+      <View style={[styles.track, { height, backgroundColor: theme.colors.darkest }]}>
         <Animated.View
-          style={[styles.fill, animatedStyle, { backgroundColor: color, height }]}
+          style={[styles.fill, animatedStyle, { backgroundColor: barColor, height }]}
         />
       </View>
       {showPercentage && (
-        <Text style={styles.percentage}>{clampedProgress.toFixed(0)}%</Text>
+        <Text style={[styles.percentage, { color: theme.colors.textMuted }]}>{clampedProgress.toFixed(0)}%</Text>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-  },
-  label: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  track: {
-    width: '100%',
-    backgroundColor: '#0F1419',
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-  fill: {
-    borderRadius: 999,
-  },
-  percentage: {
-    fontSize: 11,
-    color: '#6B7280',
-    marginTop: 4,
-  },
+  container: { width: '100%' },
+  label: { fontSize: 12, marginBottom: 4 },
+  track: { width: '100%', borderRadius: 999, overflow: 'hidden' },
+  fill: { borderRadius: 999 },
+  percentage: { fontSize: 11, marginTop: 4 },
 });

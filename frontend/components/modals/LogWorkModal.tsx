@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/Button";
 import { useDashboard } from "@/hooks/useDashboard";
 import { useProjects, useProjectTasks } from "@/hooks/useProjects";
+import { useTheme } from "@/hooks/useTheme";
 import { productivityService } from "@/services/productivityService";
 import { useAppStore } from "@/stores/appStore";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -19,6 +20,8 @@ import {
 } from "react-native";
 
 export function LogWorkModal() {
+    const theme = useTheme();
+    const c = theme.colors;
     const isOpen = useAppStore((state) => state.isLogWorkModalOpen);
     const setOpen = useAppStore((state) => state.setLogWorkModalOpen);
     const showNotification = useAppStore((state) => state.showNotification);
@@ -26,9 +29,7 @@ export function LogWorkModal() {
 
     const { data: projects } = useProjects();
     const { data: dashboard } = useDashboard();
-    const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
-        null
-    );
+    const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
     const { data: tasks } = useProjectTasks(selectedProjectId);
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
     const [selectedRoutineId, setSelectedRoutineId] = useState<string | null>(null);
@@ -37,18 +38,14 @@ export function LogWorkModal() {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const queryClient = useQueryClient();
-
-    // Active time allocations
     const activeTimers = dashboard?.timeAllocations || [];
 
-    // Set default project on open
     useEffect(() => {
         if (isOpen && activeProjectId) {
             setSelectedProjectId(activeProjectId);
         }
     }, [isOpen, activeProjectId]);
 
-    // Auto-select category if only one timer
     useEffect(() => {
         if (isOpen && activeTimers.length === 1) {
             setSelectedRoutineId(activeTimers[0].id);
@@ -66,7 +63,6 @@ export function LogWorkModal() {
 
     const handleSubmit = async () => {
         if (!logText.trim()) return;
-
         setIsSubmitting(true);
         try {
             await productivityService.logWork({
@@ -76,12 +72,9 @@ export function LogWorkModal() {
                 timeSpentMinutes: timeSpent ? parseInt(timeSpent) : undefined,
                 routineId: selectedRoutineId || undefined,
             });
-
-            // Invalidate related queries
             queryClient.invalidateQueries({ queryKey: ["dashboard"] });
             queryClient.invalidateQueries({ queryKey: ["work-logs"] });
             queryClient.invalidateQueries({ queryKey: ["user-profile"] });
-
             showNotification("Work logged successfully! 🎉", "success");
             handleClose();
         } catch (error) {
@@ -92,64 +85,41 @@ export function LogWorkModal() {
     };
 
     return (
-        <Modal
-            visible={isOpen}
-            animationType="slide"
-            transparent={true}
-            onRequestClose={handleClose}
-        >
-            <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
-                style={styles.overlay}
-            >
-                <View style={styles.modalContainer}>
-                    {/* Header */}
-                    <View style={styles.header}>
-                        <Text style={styles.title}>Log Work</Text>
+        <Modal visible={isOpen} animationType="slide" transparent={true} onRequestClose={handleClose}>
+            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={[styles.overlay, { backgroundColor: c.overlay }]}>
+                <View style={[styles.modalContainer, { backgroundColor: c.dark }]}>
+                    <View style={[styles.header, { borderBottomColor: c.border }]}>
+                        <Text style={[styles.title, { color: c.primary }]}>Log Work</Text>
                         <TouchableOpacity onPress={handleClose}>
-                            <MaterialIcons name="close" size={24} color="#6B7280" />
+                            <MaterialIcons name="close" size={24} color={c.textMuted} />
                         </TouchableOpacity>
                     </View>
 
-                    <ScrollView
-                        style={styles.scrollContent}
-                        showsVerticalScrollIndicator={false}
-                    >
-                        {/* Timer / Category Selector */}
+                    <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
                         {activeTimers.length > 0 && (
                             <View style={styles.fieldGroup}>
-                                <Text style={styles.label}>
-                                    <MaterialIcons name="schedule" size={14} color="#58CC02" />{" "}
+                                <Text style={[styles.label, { color: c.text }]}>
+                                    <MaterialIcons name="schedule" size={14} color={c.primary} />{" "}
                                     Log time against
                                 </Text>
                                 <View style={styles.timerChips}>
                                     {activeTimers.map((timer) => {
                                         const isSelected = selectedRoutineId === timer.id;
-                                        const pct = timer.allocatedMinutes > 0
-                                            ? Math.round((timer.spentMinutes / timer.allocatedMinutes) * 100)
-                                            : 0;
+                                        const pct = timer.allocatedMinutes > 0 ? Math.round((timer.spentMinutes / timer.allocatedMinutes) * 100) : 0;
                                         return (
                                             <TouchableOpacity
                                                 key={timer.id}
                                                 style={[
                                                     styles.timerChip,
+                                                    { backgroundColor: c.surface, borderColor: c.borderLight },
                                                     isSelected && { borderColor: timer.color, backgroundColor: `${timer.color}15` },
                                                 ]}
-                                                onPress={() =>
-                                                    setSelectedRoutineId(
-                                                        isSelected ? null : timer.id
-                                                    )
-                                                }
+                                                onPress={() => setSelectedRoutineId(isSelected ? null : timer.id)}
                                             >
-                                                <Text
-                                                    style={[
-                                                        styles.timerChipName,
-                                                        isSelected && { color: timer.color },
-                                                    ]}
-                                                >
+                                                <Text style={[styles.timerChipName, { color: c.textSecondary }, isSelected && { color: timer.color }]}>
                                                     {timer.categoryName}
                                                 </Text>
-                                                <Text style={[styles.timerChipProgress, isSelected && { color: timer.color }]}>
+                                                <Text style={[styles.timerChipProgress, { color: c.textMuted }, isSelected && { color: timer.color }]}>
                                                     {timer.spentMinutes}/{timer.allocatedMinutes} min ({pct}%)
                                                 </Text>
                                             </TouchableOpacity>
@@ -157,142 +127,78 @@ export function LogWorkModal() {
                                     })}
                                 </View>
                                 {selectedRoutineId && (
-                                    <Text style={styles.timerHint}>
+                                    <Text style={[styles.timerHint, { color: c.primary }]}>
                                         ⏱ Time will be added to the selected routine
                                     </Text>
                                 )}
                             </View>
                         )}
 
-                        {/* Project Selector */}
                         <View style={styles.fieldGroup}>
-                            <Text style={styles.label}>Project (optional)</Text>
-                            <ScrollView
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                style={styles.chipScroll}
-                            >
+                            <Text style={[styles.label, { color: c.text }]}>Project (optional)</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
                                 <TouchableOpacity
-                                    style={[
-                                        styles.chip,
-                                        !selectedProjectId && styles.chipActive,
-                                    ]}
-                                    onPress={() => {
-                                        setSelectedProjectId(null);
-                                        setSelectedTaskId(null);
-                                    }}
+                                    style={[styles.chip, { backgroundColor: c.surface, borderColor: c.borderLight }, !selectedProjectId && { backgroundColor: c.primaryMuted, borderColor: c.primary }]}
+                                    onPress={() => { setSelectedProjectId(null); setSelectedTaskId(null); }}
                                 >
-                                    <Text
-                                        style={[
-                                            styles.chipText,
-                                            !selectedProjectId && styles.chipTextActive,
-                                        ]}
-                                    >
-                                        None
-                                    </Text>
+                                    <Text style={[styles.chipText, { color: c.textSecondary }, !selectedProjectId && { color: c.primary }]}>None</Text>
                                 </TouchableOpacity>
                                 {projects?.map((project) => (
                                     <TouchableOpacity
                                         key={project.id}
-                                        style={[
-                                            styles.chip,
-                                            selectedProjectId === project.id && styles.chipActive,
-                                        ]}
-                                        onPress={() => {
-                                            setSelectedProjectId(project.id);
-                                            setSelectedTaskId(null);
-                                        }}
+                                        style={[styles.chip, { backgroundColor: c.surface, borderColor: c.borderLight }, selectedProjectId === project.id && { backgroundColor: c.primaryMuted, borderColor: c.primary }]}
+                                        onPress={() => { setSelectedProjectId(project.id); setSelectedTaskId(null); }}
                                     >
-                                        <Text
-                                            style={[
-                                                styles.chipText,
-                                                selectedProjectId === project.id &&
-                                                styles.chipTextActive,
-                                            ]}
-                                        >
-                                            {project.name}
-                                        </Text>
+                                        <Text style={[styles.chipText, { color: c.textSecondary }, selectedProjectId === project.id && { color: c.primary }]}>{project.name}</Text>
                                     </TouchableOpacity>
                                 ))}
                             </ScrollView>
                         </View>
 
-                        {/* Task Selector */}
                         {selectedProjectId && tasks && tasks.length > 0 && (
                             <View style={styles.fieldGroup}>
-                                <Text style={styles.label}>Task (optional)</Text>
-                                <ScrollView
-                                    horizontal
-                                    showsHorizontalScrollIndicator={false}
-                                    style={styles.chipScroll}
-                                >
+                                <Text style={[styles.label, { color: c.text }]}>Task (optional)</Text>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
                                     <TouchableOpacity
-                                        style={[
-                                            styles.chip,
-                                            !selectedTaskId && styles.chipActive,
-                                        ]}
+                                        style={[styles.chip, { backgroundColor: c.surface, borderColor: c.borderLight }, !selectedTaskId && { backgroundColor: c.primaryMuted, borderColor: c.primary }]}
                                         onPress={() => setSelectedTaskId(null)}
                                     >
-                                        <Text
-                                            style={[
-                                                styles.chipText,
-                                                !selectedTaskId && styles.chipTextActive,
-                                            ]}
-                                        >
-                                            None
-                                        </Text>
+                                        <Text style={[styles.chipText, { color: c.textSecondary }, !selectedTaskId && { color: c.primary }]}>None</Text>
                                     </TouchableOpacity>
-                                    {tasks
-                                        .filter((t) => t.status !== "completed")
-                                        .map((task) => (
-                                            <TouchableOpacity
-                                                key={task.id}
-                                                style={[
-                                                    styles.chip,
-                                                    selectedTaskId === task.id && styles.chipActive,
-                                                ]}
-                                                onPress={() => setSelectedTaskId(task.id)}
-                                            >
-                                                <Text
-                                                    style={[
-                                                        styles.chipText,
-                                                        selectedTaskId === task.id &&
-                                                        styles.chipTextActive,
-                                                    ]}
-                                                >
-                                                    {task.title}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        ))}
+                                    {tasks.filter((t) => t.status !== "completed").map((task) => (
+                                        <TouchableOpacity
+                                            key={task.id}
+                                            style={[styles.chip, { backgroundColor: c.surface, borderColor: c.borderLight }, selectedTaskId === task.id && { backgroundColor: c.primaryMuted, borderColor: c.primary }]}
+                                            onPress={() => setSelectedTaskId(task.id)}
+                                        >
+                                            <Text style={[styles.chipText, { color: c.textSecondary }, selectedTaskId === task.id && { color: c.primary }]}>{task.title}</Text>
+                                        </TouchableOpacity>
+                                    ))}
                                 </ScrollView>
                             </View>
                         )}
 
-                        {/* Log Text */}
                         <View style={styles.fieldGroup}>
-                            <Text style={styles.label}>What did you work on? *</Text>
+                            <Text style={[styles.label, { color: c.text }]}>What did you work on? *</Text>
                             <TextInput
-                                style={[styles.input, styles.textArea]}
+                                style={[styles.input, styles.textArea, { backgroundColor: c.surface, borderColor: c.borderLight, color: c.text }]}
                                 multiline
                                 numberOfLines={4}
                                 placeholder="Describe what you accomplished..."
-                                placeholderTextColor="#6B7280"
+                                placeholderTextColor={c.textMuted}
                                 value={logText}
                                 onChangeText={setLogText}
                                 editable={!isSubmitting}
                             />
                         </View>
 
-                        {/* Time Spent */}
                         <View style={styles.fieldGroup}>
-                            <Text style={styles.label}>
-                                Time spent (minutes)
-                            </Text>
+                            <Text style={[styles.label, { color: c.text }]}>Time spent (minutes)</Text>
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { backgroundColor: c.surface, borderColor: c.borderLight, color: c.text }]}
                                 keyboardType="numeric"
                                 placeholder="e.g. 30"
-                                placeholderTextColor="#6B7280"
+                                placeholderTextColor={c.textMuted}
                                 value={timeSpent}
                                 onChangeText={setTimeSpent}
                                 editable={!isSubmitting}
@@ -300,7 +206,6 @@ export function LogWorkModal() {
                         </View>
                     </ScrollView>
 
-                    {/* Submit Button */}
                     <View style={styles.footer}>
                         <Button
                             title={isSubmitting ? "Logging..." : "Log Work ✨"}
@@ -317,121 +222,22 @@ export function LogWorkModal() {
 }
 
 const styles = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        justifyContent: "flex-end",
-        backgroundColor: "rgba(0, 0, 0, 0.6)",
-    },
-    modalContainer: {
-        backgroundColor: "#131F24",
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-        maxHeight: "85%",
-        paddingBottom: 32,
-    },
-    header: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        paddingHorizontal: 24,
-        paddingVertical: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: "#1A2C34",
-    },
-    title: {
-        fontSize: 20,
-        fontWeight: "700",
-        color: "#58CC02",
-    },
-    scrollContent: {
-        paddingHorizontal: 24,
-        paddingTop: 16,
-    },
-    fieldGroup: {
-        marginBottom: 20,
-    },
-    label: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: "#E5E7EB",
-        marginBottom: 8,
-    },
-    timerChips: {
-        gap: 8,
-    },
-    timerChip: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderRadius: 10,
-        backgroundColor: "#1A2C34",
-        borderWidth: 1,
-        borderColor: "#374151",
-    },
-    timerChipActive: {
-        backgroundColor: "#0F4C2F",
-        borderColor: "#58CC02",
-    },
-    timerChipName: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: "#9CA3AF",
-    },
-    timerChipNameActive: {
-        color: "#58CC02",
-    },
-    timerChipProgress: {
-        fontSize: 12,
-        color: "#6B7280",
-    },
-    timerHint: {
-        fontSize: 12,
-        color: "#58CC02",
-        marginTop: 6,
-        fontStyle: "italic",
-    },
-    chipScroll: {
-        flexDirection: "row",
-    },
-    chip: {
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-        borderRadius: 20,
-        backgroundColor: "#1A2C34",
-        marginRight: 8,
-        borderWidth: 1,
-        borderColor: "#374151",
-    },
-    chipActive: {
-        backgroundColor: "#0F4C2F",
-        borderColor: "#58CC02",
-    },
-    chipText: {
-        fontSize: 13,
-        color: "#9CA3AF",
-        fontWeight: "500",
-    },
-    chipTextActive: {
-        color: "#58CC02",
-    },
-    input: {
-        backgroundColor: "#1A2C34",
-        borderWidth: 1,
-        borderColor: "#374151",
-        borderRadius: 8,
-        paddingHorizontal: 14,
-        paddingVertical: 12,
-        fontSize: 16,
-        color: "#FFFFFF",
-    },
-    textArea: {
-        minHeight: 100,
-        textAlignVertical: "top",
-    },
-    footer: {
-        paddingHorizontal: 24,
-        paddingTop: 12,
-    },
+    overlay: { flex: 1, justifyContent: "flex-end" },
+    modalContainer: { borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: "85%", paddingBottom: 32 },
+    header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 24, paddingVertical: 20, borderBottomWidth: 1 },
+    title: { fontSize: 20, fontWeight: "700" },
+    scrollContent: { paddingHorizontal: 24, paddingTop: 16 },
+    fieldGroup: { marginBottom: 20 },
+    label: { fontSize: 14, fontWeight: "600", marginBottom: 8 },
+    timerChips: { gap: 8 },
+    timerChip: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, borderWidth: 1 },
+    timerChipName: { fontSize: 14, fontWeight: "600" },
+    timerChipProgress: { fontSize: 12 },
+    timerHint: { fontSize: 12, marginTop: 6, fontStyle: "italic" },
+    chipScroll: { flexDirection: "row" },
+    chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginRight: 8, borderWidth: 1 },
+    chipText: { fontSize: 13, fontWeight: "500" },
+    input: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
+    textArea: { minHeight: 100, textAlignVertical: "top" },
+    footer: { paddingHorizontal: 24, paddingTop: 12 },
 });

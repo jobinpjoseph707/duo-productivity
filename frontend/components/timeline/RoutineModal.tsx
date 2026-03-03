@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/Button';
+import { useTheme } from '@/hooks/useTheme';
 import { useCreateRoutine, useDeleteRoutine, useUpdateRoutine } from '@/hooks/useTimeline';
 import { Routine } from '@/services/timelineService';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -25,32 +26,33 @@ interface RoutineModalProps {
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const PRESET_CATEGORIES = [
-    { name: "Code", icon: "code" as const, color: "#58CC02" },
-    { name: "Study", icon: "school" as const, color: "#CE82FF" },
-    { name: "Design", icon: "palette" as const, color: "#FF9600" },
-    { name: "Writing", icon: "edit" as const, color: "#3B82F6" },
-    { name: "Research", icon: "search" as const, color: "#F59E0B" },
-    { name: "Meetings", icon: "groups" as const, color: "#EF4444" },
-];
-
 export function RoutineModal({ visible, onClose, initialHour, existingRoutine }: RoutineModalProps) {
+    const theme = useTheme();
+    const c = theme.colors;
     const createMutation = useCreateRoutine();
     const updateMutation = useUpdateRoutine();
     const deleteMutation = useDeleteRoutine();
 
+    const PRESET_CATEGORIES = [
+        { name: "Code", icon: "code" as const, color: c.primary },
+        { name: "Study", icon: "school" as const, color: c.secondary },
+        { name: "Design", icon: "palette" as const, color: c.accent },
+        { name: "Writing", icon: "edit" as const, color: "#3B82F6" },
+        { name: "Research", icon: "search" as const, color: c.warning },
+        { name: "Meetings", icon: "groups" as const, color: c.error },
+    ];
+
     const [title, setTitle] = useState('');
-    const [color, setColor] = useState('#58CC02');
+    const [color, setColor] = useState(c.primary);
     const [startTime, setStartTime] = useState('09:00');
     const [endTime, setEndTime] = useState('10:00');
-    const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5]); // Mon-Fri default
+    const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5]);
 
-    // Reset state when modal opens
     useEffect(() => {
         if (visible) {
             if (existingRoutine) {
                 setTitle(existingRoutine.title);
-                setColor(existingRoutine.color || '#58CC02');
+                setColor(existingRoutine.color || c.primary);
                 setStartTime(existingRoutine.start_time.substring(0, 5));
                 setEndTime(existingRoutine.end_time.substring(0, 5));
                 setSelectedDays(existingRoutine.days_of_week);
@@ -61,13 +63,13 @@ export function RoutineModal({ visible, onClose, initialHour, existingRoutine }:
                 const nextHourStr = String((initialHour ?? now.getHours()) + 1).padStart(2, '0');
 
                 setTitle('');
-                setColor('#58CC02');
+                setColor(c.primary);
                 setStartTime(initialHour ? `${currentHourStr}:00` : `${currentHourStr}:${currentMinuteStr}`);
                 setEndTime(initialHour ? `${nextHourStr}:00` : `${nextHourStr}:${currentMinuteStr}`);
                 setSelectedDays([1, 2, 3, 4, 5]);
             }
         }
-    }, [visible, existingRoutine, initialHour]);
+    }, [visible, existingRoutine, initialHour, c.primary]);
 
     const selectPreset = (presetName: string, presetColor: string) => {
         setTitle(presetName);
@@ -83,7 +85,6 @@ export function RoutineModal({ visible, onClose, initialHour, existingRoutine }:
     };
 
     const handleSave = () => {
-        // Basic validation; format must be HH:MM
         if (!title.trim() || !startTime || !endTime || selectedDays.length === 0) {
             Alert.alert("Invalid Input", "Please fill out all required fields and select at least one day.");
             return;
@@ -98,10 +99,7 @@ export function RoutineModal({ visible, onClose, initialHour, existingRoutine }:
         };
 
         if (existingRoutine) {
-            updateMutation.mutate(
-                { id: existingRoutine.id, routine: payload },
-                { onSuccess: onClose }
-            );
+            updateMutation.mutate({ id: existingRoutine.id, routine: payload }, { onSuccess: onClose });
         } else {
             createMutation.mutate(payload, { onSuccess: onClose });
         }
@@ -109,76 +107,42 @@ export function RoutineModal({ visible, onClose, initialHour, existingRoutine }:
 
     const handleDelete = () => {
         if (!existingRoutine) return;
-        Alert.alert(
-            "Delete Routine",
-            "Are you sure you want to delete this scheduled routine?",
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Delete",
-                    style: "destructive",
-                    onPress: () => {
-                        deleteMutation.mutate(existingRoutine.id, { onSuccess: onClose });
-                    }
-                }
-            ]
-        );
+        Alert.alert("Delete Routine", "Are you sure you want to delete this scheduled routine?", [
+            { text: "Cancel", style: "cancel" },
+            { text: "Delete", style: "destructive", onPress: () => deleteMutation.mutate(existingRoutine.id, { onSuccess: onClose }) }
+        ]);
     };
 
     const isPending = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
 
     return (
-        <Modal
-            visible={visible}
-            animationType="slide"
-            transparent={true}
-            onRequestClose={onClose}
-        >
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.overlay}
-            >
-                <View style={styles.modalContainer}>
-                    <View style={styles.header}>
-                        <Text style={styles.title}>{existingRoutine ? 'Edit Routine' : 'New Routine'}</Text>
+        <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={[styles.overlay, { backgroundColor: c.overlay }]}>
+                <View style={[styles.modalContainer, { backgroundColor: c.dark }]}>
+                    <View style={[styles.header, { borderBottomColor: c.border }]}>
+                        <Text style={[styles.title, { color: c.primary }]}>{existingRoutine ? 'Edit Routine' : 'New Routine'}</Text>
                         <TouchableOpacity onPress={onClose}>
-                            <MaterialIcons name="close" size={24} color="#6B7280" />
+                            <MaterialIcons name="close" size={24} color={c.textMuted} />
                         </TouchableOpacity>
                     </View>
 
                     <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
-
                         {/* Preset Categories */}
                         <View style={styles.presetsSection}>
-                            <Text style={styles.label}>Quick Select</Text>
+                            <Text style={[styles.label, { color: c.text }]}>Quick Select</Text>
                             <View style={styles.presetsGrid}>
                                 {PRESET_CATEGORIES.map((preset) => (
                                     <TouchableOpacity
                                         key={preset.name}
                                         style={[
                                             styles.presetChip,
-                                            title === preset.name && {
-                                                borderColor: preset.color,
-                                                backgroundColor: `${preset.color}15`,
-                                            },
+                                            { backgroundColor: c.surface, borderColor: c.borderLight },
+                                            title === preset.name && { borderColor: preset.color, backgroundColor: `${preset.color}15` },
                                         ]}
                                         onPress={() => selectPreset(preset.name, preset.color)}
                                     >
-                                        <MaterialIcons
-                                            name={preset.icon}
-                                            size={18}
-                                            color={
-                                                title === preset.name ? preset.color : "#6B7280"
-                                            }
-                                        />
-                                        <Text
-                                            style={[
-                                                styles.presetText,
-                                                title === preset.name && {
-                                                    color: preset.color,
-                                                },
-                                            ]}
-                                        >
+                                        <MaterialIcons name={preset.icon} size={18} color={title === preset.name ? preset.color : c.textMuted} />
+                                        <Text style={[styles.presetText, { color: c.textMuted }, title === preset.name && { color: preset.color }]}>
                                             {preset.name}
                                         </Text>
                                     </TouchableOpacity>
@@ -188,11 +152,11 @@ export function RoutineModal({ visible, onClose, initialHour, existingRoutine }:
 
                         {/* Title */}
                         <View style={styles.fieldGroup}>
-                            <Text style={styles.label}>Routine Title *</Text>
+                            <Text style={[styles.label, { color: c.text }]}>Routine Title *</Text>
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { backgroundColor: c.surface, borderColor: c.borderLight, color: c.text }]}
                                 placeholder="e.g. Deep Work, Morning Workout"
-                                placeholderTextColor="#6B7280"
+                                placeholderTextColor={c.textMuted}
                                 value={title}
                                 onChangeText={setTitle}
                                 editable={!isPending}
@@ -202,44 +166,48 @@ export function RoutineModal({ visible, onClose, initialHour, existingRoutine }:
                         {/* Times */}
                         <View style={styles.rowWrapper}>
                             <View style={[styles.fieldGroup, { flex: 1, marginRight: 8 }]}>
-                                <Text style={styles.label}>Start Time (HH:MM)</Text>
+                                <Text style={[styles.label, { color: c.text }]}>Start Time (HH:MM)</Text>
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, { backgroundColor: c.surface, borderColor: c.borderLight, color: c.text }]}
                                     placeholder="09:00"
-                                    placeholderTextColor="#6B7280"
+                                    placeholderTextColor={c.textMuted}
                                     value={startTime}
                                     onChangeText={setStartTime}
                                     editable={!isPending}
                                 />
                             </View>
                             <View style={[styles.fieldGroup, { flex: 1, marginLeft: 8 }]}>
-                                <Text style={styles.label}>End Time (HH:MM)</Text>
+                                <Text style={[styles.label, { color: c.text }]}>End Time (HH:MM)</Text>
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, { backgroundColor: c.surface, borderColor: c.borderLight, color: c.text }]}
                                     placeholder="10:00"
-                                    placeholderTextColor="#6B7280"
+                                    placeholderTextColor={c.textMuted}
                                     value={endTime}
                                     onChangeText={setEndTime}
                                     editable={!isPending}
                                 />
                             </View>
                         </View>
-                        <Text style={styles.hintText}>Use 24-hour format, e.g., 14:30 for 2:30 PM.</Text>
+                        <Text style={[styles.hintText, { color: c.textMuted }]}>Use 24-hour format, e.g., 14:30 for 2:30 PM.</Text>
 
                         {/* Days of Week */}
                         <View style={styles.fieldGroup}>
-                            <Text style={styles.label}>Repeat On</Text>
+                            <Text style={[styles.label, { color: c.text }]}>Repeat On</Text>
                             <View style={styles.daysRow}>
                                 {DAYS.map((dayName, index) => {
                                     const isSelected = selectedDays.includes(index);
                                     return (
                                         <TouchableOpacity
                                             key={index}
-                                            style={[styles.dayCircle, isSelected && { backgroundColor: color, borderColor: color }]}
+                                            style={[
+                                                styles.dayCircle,
+                                                { backgroundColor: c.surface, borderColor: c.borderLight },
+                                                isSelected && { backgroundColor: color, borderColor: color },
+                                            ]}
                                             onPress={() => toggleDay(index)}
                                             disabled={isPending}
                                         >
-                                            <Text style={[styles.dayText, isSelected && styles.dayTextActive]}>
+                                            <Text style={[styles.dayText, { color: c.textSecondary }, isSelected && { color: '#000' }]}>
                                                 {dayName[0]}
                                             </Text>
                                         </TouchableOpacity>
@@ -247,13 +215,12 @@ export function RoutineModal({ visible, onClose, initialHour, existingRoutine }:
                                 })}
                             </View>
                         </View>
-
                     </ScrollView>
 
-                    <View style={styles.footer}>
+                    <View style={[styles.footer, { borderTopColor: c.border }]}>
                         {existingRoutine && (
-                            <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete} disabled={isPending}>
-                                <MaterialIcons name="delete-outline" size={24} color="#EF4444" />
+                            <TouchableOpacity style={[styles.deleteBtn, { backgroundColor: c.surface, borderColor: c.borderLight }]} onPress={handleDelete} disabled={isPending}>
+                                <MaterialIcons name="delete-outline" size={24} color={c.error} />
                             </TouchableOpacity>
                         )}
                         <View style={styles.saveBtnWrapper}>
@@ -273,131 +240,24 @@ export function RoutineModal({ visible, onClose, initialHour, existingRoutine }:
 }
 
 const styles = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        justifyContent: 'flex-end',
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    },
-    modalContainer: {
-        backgroundColor: '#131F24',
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-        maxHeight: '90%',
-        paddingBottom: 32,
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 24,
-        paddingVertical: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: '#1A2C34',
-    },
-    title: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#58CC02',
-    },
-    scrollContent: {
-        paddingTop: 16,
-    },
-    presetsSection: {
-        paddingHorizontal: 24,
-        marginBottom: 20,
-    },
-    presetsGrid: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 8,
-    },
-    presetChip: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 20,
-        backgroundColor: "#1A2C34",
-        borderWidth: 1,
-        borderColor: "#374151",
-    },
-    presetText: {
-        fontSize: 13,
-        fontWeight: "500",
-        color: "#6B7280",
-    },
-    fieldGroup: {
-        paddingHorizontal: 24,
-        marginBottom: 20,
-    },
-    rowWrapper: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        paddingHorizontal: 24,
-        marginBottom: 4,
-    },
-    label: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#E5E7EB',
-        marginBottom: 8,
-    },
-    hintText: {
-        fontSize: 12,
-        color: '#6B7280',
-        fontStyle: 'italic',
-        marginBottom: 20,
-        marginTop: -16,
-        paddingHorizontal: 24,
-    },
-    input: {
-        backgroundColor: '#1A2C34',
-        borderWidth: 1,
-        borderColor: '#374151',
-        borderRadius: 8,
-        paddingHorizontal: 14,
-        paddingVertical: 12,
-        fontSize: 16,
-        color: '#FFFFFF',
-    },
-    daysRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    dayCircle: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#1A2C34',
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#374151',
-    },
-    dayText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#9CA3AF',
-    },
-    dayTextActive: {
-        color: '#000000',
-    },
-    footer: {
-        flexDirection: 'row',
-        paddingHorizontal: 24,
-        paddingTop: 12,
-        alignItems: 'center',
-    },
-    deleteBtn: {
-        padding: 12,
-        marginRight: 12,
-        backgroundColor: '#1A2C34',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#374151',
-    },
-    saveBtnWrapper: {
-        flex: 1,
-    }
+    overlay: { flex: 1, justifyContent: 'flex-end' },
+    modalContainer: { borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '90%', paddingBottom: 32 },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 20, borderBottomWidth: 1 },
+    title: { fontSize: 20, fontWeight: '700' },
+    scrollContent: { paddingTop: 16 },
+    presetsSection: { paddingHorizontal: 24, marginBottom: 20 },
+    presetsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    presetChip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
+    presetText: { fontSize: 13, fontWeight: "500" },
+    fieldGroup: { paddingHorizontal: 24, marginBottom: 20 },
+    rowWrapper: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 24, marginBottom: 4 },
+    label: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
+    hintText: { fontSize: 12, fontStyle: 'italic', marginBottom: 20, marginTop: -16, paddingHorizontal: 24 },
+    input: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
+    daysRow: { flexDirection: 'row', justifyContent: 'space-between' },
+    dayCircle: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
+    dayText: { fontSize: 14, fontWeight: '600' },
+    footer: { flexDirection: 'row', paddingHorizontal: 24, paddingTop: 12, alignItems: 'center', borderTopWidth: 1 },
+    deleteBtn: { padding: 12, marginRight: 12, borderRadius: 12, borderWidth: 1 },
+    saveBtnWrapper: { flex: 1 },
 });

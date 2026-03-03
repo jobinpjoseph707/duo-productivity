@@ -1,3 +1,4 @@
+import { useTheme } from '@/hooks/useTheme';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -6,14 +7,17 @@ interface BadgeProps {
   variant?: 'primary' | 'success' | 'warning' | 'error';
 }
 
-const variantColors: Record<string, { bg: string; text: string }> = {
-  primary: { bg: 'rgba(88, 204, 2, 0.15)', text: '#58CC02' },
-  success: { bg: 'rgba(88, 204, 2, 0.15)', text: '#58CC02' },
-  warning: { bg: 'rgba(255, 150, 0, 0.15)', text: '#FF9600' },
-  error: { bg: 'rgba(239, 68, 68, 0.15)', text: '#EF4444' },
-};
-
 export function Badge({ label, variant = 'primary' }: BadgeProps) {
+  const theme = useTheme();
+  const c = theme.colors;
+
+  const variantColors: Record<string, { bg: string; text: string }> = {
+    primary: { bg: c.primaryMuted, text: c.primary },
+    success: { bg: c.successBg, text: c.success },
+    warning: { bg: c.warningBg, text: c.warning },
+    error: { bg: c.errorBg, text: c.error },
+  };
+
   const colors = variantColors[variant] || variantColors.primary;
 
   return (

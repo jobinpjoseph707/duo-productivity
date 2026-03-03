@@ -1,5 +1,6 @@
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 import { useColorScheme } from '@/components/useColorScheme';
+import { useTheme } from '@/hooks/useTheme';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Tabs } from 'expo-router';
 import React from 'react';
@@ -14,17 +15,19 @@ function TabBarIcon(props: {
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const theme = useTheme();
+  const c = theme.colors;
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#58CC02',
-        tabBarInactiveTintColor: '#6B7280',
-        tabBarStyle: { backgroundColor: '#1A2C34', borderTopColor: '#131F24' },
+        tabBarActiveTintColor: c.primary,
+        tabBarInactiveTintColor: c.textMuted,
+        tabBarStyle: { backgroundColor: c.dark, borderTopColor: c.border },
         headerShown: useClientOnlyValue(false, true),
-        headerStyle: { backgroundColor: '#1A2C34' },
-        headerTintColor: '#58CC02',
-        headerTitleStyle: { color: '#FFFFFF' },
+        headerStyle: { backgroundColor: c.dark },
+        headerTintColor: c.primary,
+        headerTitleStyle: { color: c.text },
       }}
     >
       <Tabs.Screen
@@ -70,7 +73,7 @@ export default function TabLayout() {
                       position: 'absolute',
                       right: -6,
                       top: -4,
-                      backgroundColor: '#FF4B4B',
+                      backgroundColor: c.error,
                       borderRadius: 8,
                       width: 16,
                       height: 16,

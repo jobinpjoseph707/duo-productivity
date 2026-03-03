@@ -1,9 +1,12 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 
 interface AppState {
   // Theme
   isDarkMode: boolean;
   setDarkMode: (isDark: boolean) => void;
+  themeName: string;
+  setThemeName: (name: string) => void;
 
   // Modal states
   isAuthModalOpen: boolean;
@@ -47,6 +50,11 @@ export const useAppStore = create<AppState>((set) => ({
   // Theme
   isDarkMode: true,
   setDarkMode: (isDark) => set({ isDarkMode: isDark }),
+  themeName: 'solo-leveling',
+  setThemeName: (name) => {
+    set({ themeName: name });
+    AsyncStorage.setItem('app_theme', name).catch(console.warn);
+  },
 
   ...initialState,
 
@@ -70,3 +78,8 @@ export const useAppStore = create<AppState>((set) => ({
   // Global reset
   reset: () => set(initialState),
 }));
+
+// Load saved theme on startup
+AsyncStorage.getItem('app_theme').then((saved: string | null) => {
+  if (saved) useAppStore.setState({ themeName: saved });
+}).catch(console.warn);

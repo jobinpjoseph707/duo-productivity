@@ -1,3 +1,4 @@
+import { useTheme } from '@/hooks/useTheme';
 import React, { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
@@ -13,6 +14,8 @@ interface StreakFireProps {
 }
 
 export function StreakFire({ count, isFrozen = false }: StreakFireProps) {
+  const theme = useTheme();
+  const c = theme.colors;
   const scale = useSharedValue(1);
 
   useEffect(() => {
@@ -36,11 +39,11 @@ export function StreakFire({ count, isFrozen = false }: StreakFireProps) {
       <Animated.Text style={[styles.fireEmoji, animatedStyle]}>
         🔥
       </Animated.Text>
-      <Text style={styles.countText}>{count}</Text>
-      <Text style={styles.label}>day streak</Text>
+      <Text style={[styles.countText, { color: c.accent }]}>{count}</Text>
+      <Text style={[styles.label, { color: c.textSecondary }]}>day streak</Text>
       {isFrozen && (
-        <View style={styles.frozenBadge}>
-          <Text style={styles.frozenText}>❄️ Frozen</Text>
+        <View style={[styles.frozenBadge, { backgroundColor: c.secondaryMuted }]}>
+          <Text style={[styles.frozenText, { color: c.secondary }]}>❄️ Frozen</Text>
         </View>
       )}
     </View>
@@ -48,34 +51,15 @@ export function StreakFire({ count, isFrozen = false }: StreakFireProps) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  fireEmoji: {
-    fontSize: 48,
-    marginBottom: 8,
-  },
-  countText: {
-    fontSize: 36,
-    fontWeight: '800',
-    color: '#FF9600',
-  },
-  label: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    marginTop: 2,
-  },
+  container: { alignItems: 'center', paddingVertical: 8 },
+  fireEmoji: { fontSize: 48, marginBottom: 8 },
+  countText: { fontSize: 36, fontWeight: '800' },
+  label: { fontSize: 14, marginTop: 2 },
   frozenBadge: {
     marginTop: 8,
-    backgroundColor: 'rgba(56, 189, 248, 0.15)',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
   },
-  frozenText: {
-    color: '#38BDF8',
-    fontSize: 12,
-    fontWeight: '600',
-  },
+  frozenText: { fontSize: 12, fontWeight: '600' },
 });

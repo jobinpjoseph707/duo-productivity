@@ -1,3 +1,4 @@
+import { useTheme } from '@/hooks/useTheme';
 import {
   ActivityIndicator,
   StyleSheet,
@@ -25,9 +26,24 @@ export const Button = ({
   textStyle,
   ...props
 }: ButtonProps) => {
-  const variantStyle = variantStyles[variant] || variantStyles.primary;
+  const theme = useTheme();
+  const c = theme.colors;
+
+  const variantBg: Record<string, any> = {
+    primary: { backgroundColor: c.primary },
+    secondary: { backgroundColor: c.secondary },
+    outline: { backgroundColor: 'transparent', borderWidth: 2, borderColor: c.primary },
+    ghost: { backgroundColor: 'transparent' },
+  };
+
+  const variantText: Record<string, any> = {
+    primary: { color: '#FFFFFF' },
+    secondary: { color: '#FFFFFF' },
+    outline: { color: c.primary },
+    ghost: { color: c.primary },
+  };
+
   const sizeStyle = sizeStyles[size] || sizeStyles.medium;
-  const textVariantStyle = textVariantStyles[variant] || textVariantStyles.primary;
   const textSizeStyle = textSizeStyles[size] || textSizeStyles.medium;
 
   return (
@@ -35,7 +51,7 @@ export const Button = ({
       disabled={disabled || loading}
       style={[
         styles.button,
-        variantStyle,
+        variantBg[variant] || variantBg.primary,
         sizeStyle,
         (disabled || loading) && styles.disabledButton,
         style,
@@ -44,13 +60,13 @@ export const Button = ({
     >
       {loading ? (
         <ActivityIndicator
-          color={variant === "outline" || variant === "ghost" ? "#58CC02" : "#FFFFFF"}
+          color={variant === "outline" || variant === "ghost" ? c.primary : "#FFFFFF"}
         />
       ) : (
         <Text
           style={[
             styles.text,
-            textVariantStyle,
+            variantText[variant] || variantText.primary,
             textSizeStyle,
             textStyle,
           ]}
@@ -62,46 +78,10 @@ export const Button = ({
   );
 };
 
-const variantStyles = StyleSheet.create({
-  primary: {
-    backgroundColor: "#58CC02",
-  },
-  secondary: {
-    backgroundColor: "#CE82FF",
-  },
-  outline: {
-    backgroundColor: "transparent",
-    borderWidth: 2,
-    borderColor: "#58CC02",
-  },
-  ghost: {
-    backgroundColor: "transparent",
-  },
-});
-
 const sizeStyles = StyleSheet.create({
-  small: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-  },
-  medium: {
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-  },
-  large: {
-    paddingVertical: 18,
-    paddingHorizontal: 28,
-    borderRadius: 12,
-  },
-});
-
-const textVariantStyles = StyleSheet.create({
-  primary: { color: "#FFFFFF" },
-  secondary: { color: "#FFFFFF" },
-  outline: { color: "#58CC02" },
-  ghost: { color: "#58CC02" },
+  small: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 6 },
+  medium: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 8 },
+  large: { paddingVertical: 18, paddingHorizontal: 28, borderRadius: 12 },
 });
 
 const textSizeStyles = StyleSheet.create({

@@ -9,6 +9,7 @@ import {
   useUserProfile,
 } from "@/hooks/useDashboard";
 import { useTaskPath } from "@/hooks/useTaskPath";
+import { useTheme } from "@/hooks/useTheme";
 import { useAppStore } from "@/stores/appStore";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useRouter } from "expo-router";
@@ -30,6 +31,8 @@ export default function DashboardScreen() {
   const setLogWorkModalOpen = useAppStore((state) => state.setLogWorkModalOpen);
   const router = useRouter();
   const [isRoutineModalOpen, setRoutineModalOpen] = useState(false);
+  const theme = useTheme();
+  const c = theme.colors;
 
   const restoreStreak = useRestoreStreak();
 
@@ -37,49 +40,49 @@ export default function DashboardScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#58CC02" />
+      <View style={[styles.loadingContainer, { backgroundColor: c.dark }]}>
+        <ActivityIndicator size="large" color={c.primary} />
       </View>
     );
   }
 
   if (!dashboard || !userProfile) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Failed to load dashboard</Text>
+      <View style={[styles.errorContainer, { backgroundColor: c.dark }]}>
+        <Text style={[styles.errorText, { color: c.error }]}>Failed to load dashboard</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[styles.container, { backgroundColor: c.dark }]} showsVerticalScrollIndicator={false}>
       {/* Compact Header Row */}
       <View style={styles.headerRow}>
         <View>
-          <Text style={styles.greeting}>Welcome back,</Text>
-          <Text style={styles.name}>{userProfile.display_name || "User"}</Text>
+          <Text style={[styles.greeting, { color: c.textMuted }]}>Welcome back,</Text>
+          <Text style={[styles.name, { color: c.text }]}>{userProfile.display_name || "User"}</Text>
         </View>
-        <View style={styles.levelCircle}>
+        <View style={[styles.levelCircle, { backgroundColor: c.primary }]}>
           <Text style={styles.levelNum}>{userProfile.level || 1}</Text>
         </View>
       </View>
 
       {/* Stats Row — Streak, XP, Level */}
       <View style={styles.statsRow}>
-        <View style={styles.statCard}>
+        <View style={[styles.statCard, { backgroundColor: c.surface, borderColor: c.border }]}>
           <Text style={styles.statEmoji}>🔥</Text>
-          <Text style={styles.statNum}>{dashboard.streak || 0}</Text>
-          <Text style={styles.statLabel}>Streak</Text>
+          <Text style={[styles.statNum, { color: c.text }]}>{dashboard.streak || 0}</Text>
+          <Text style={[styles.statLabel, { color: c.textMuted }]}>Streak</Text>
         </View>
-        <View style={styles.statCard}>
+        <View style={[styles.statCard, { backgroundColor: c.surface, borderColor: c.border }]}>
           <Text style={styles.statEmoji}>⚡</Text>
-          <Text style={styles.statNum}>{userProfile.total_xp || 0}</Text>
-          <Text style={styles.statLabel}>Total XP</Text>
+          <Text style={[styles.statNum, { color: c.text }]}>{userProfile.total_xp || 0}</Text>
+          <Text style={[styles.statLabel, { color: c.textMuted }]}>Total XP</Text>
         </View>
-        <View style={styles.statCard}>
+        <View style={[styles.statCard, { backgroundColor: c.surface, borderColor: c.border }]}>
           <Text style={styles.statEmoji}>🏆</Text>
-          <Text style={styles.statNum}>Lv.{userProfile.level || 1}</Text>
-          <Text style={styles.statLabel}>Level</Text>
+          <Text style={[styles.statNum, { color: c.text }]}>Lv.{userProfile.level || 1}</Text>
+          <Text style={[styles.statLabel, { color: c.textMuted }]}>Level</Text>
         </View>
       </View>
 
@@ -94,12 +97,12 @@ export default function DashboardScreen() {
 
       {/* Streak Restore */}
       {dashboard.lastStreakCount > 0 && dashboard.streak === 0 && (
-        <Card style={styles.restoreCard}>
-          <Text style={styles.restoreText}>
-            You lost your <Text style={styles.restoreHighlight}>{dashboard.lastStreakCount}-day</Text> streak! 😢
+        <Card style={{ borderColor: c.accent, borderWidth: 1, backgroundColor: c.warningBg }}>
+          <Text style={[styles.restoreText, { color: c.text }]}>
+            You lost your <Text style={{ color: c.accent, fontWeight: '800' }}>{dashboard.lastStreakCount}-day</Text> streak! 😢
           </Text>
           <TouchableOpacity
-            style={[styles.actionBtn, { marginTop: 12, backgroundColor: '#FF9600' }, userProfile.total_xp < 100 && { opacity: 0.5 }]}
+            style={[styles.actionBtn, { marginTop: 12, backgroundColor: c.accent }, userProfile.total_xp < 100 && { opacity: 0.5 }]}
             onPress={() => restoreStreak.mutate()}
             disabled={restoreStreak.isPending || userProfile.total_xp < 100}
           >
@@ -112,7 +115,7 @@ export default function DashboardScreen() {
             )}
           </TouchableOpacity>
           {userProfile.total_xp < 100 && (
-            <Text style={styles.restoreWarning}>You need 100 XP to restore your streak.</Text>
+            <Text style={{ color: c.error, fontSize: 12, marginTop: 8, textAlign: 'center' }}>You need 100 XP to restore your streak.</Text>
           )}
         </Card>
       )}
@@ -120,37 +123,37 @@ export default function DashboardScreen() {
       {/* Quick Actions */}
       <View style={styles.actionsRow}>
         <TouchableOpacity
-          style={styles.actionBtn}
+          style={[styles.actionBtn, { backgroundColor: c.primary }]}
           onPress={() => setLogWorkModalOpen(true)}
         >
-          <MaterialIcons name="edit" size={20} color="#000" />
-          <Text style={styles.actionBtnText}>Log Work</Text>
+          <MaterialIcons name="edit" size={20} color="#FFF" />
+          <Text style={[styles.actionBtnText, { color: '#FFF' }]}>Log Work</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.actionBtn, styles.actionBtnSecondary]}
+          style={[styles.actionBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.primary }]}
           onPress={() => setRoutineModalOpen(true)}
         >
-          <MaterialIcons name="schedule" size={20} color="#58CC02" />
-          <Text style={[styles.actionBtnText, styles.actionBtnTextSecondary]}>
+          <MaterialIcons name="schedule" size={20} color={c.primary} />
+          <Text style={[styles.actionBtnText, { color: c.primary }]}>
             Set Time
           </Text>
         </TouchableOpacity>
       </View>
 
-      {/* 🎯 Today's Quests — Gamified Daily Backlog */}
+      {/* 🎯 Today's Quests */}
       {quests && quests.length > 0 && (
         <Card>
           <View style={styles.pathHeader}>
-            <Text style={styles.sectionTitle}>Today's Quests</Text>
-            <View style={styles.bonusBadge}>
-              <Text style={styles.bonusText}>+50 XP BONUS</Text>
+            <Text style={[styles.sectionTitle, { color: c.primary }]}>Today's Quests</Text>
+            <View style={[styles.bonusBadge, { backgroundColor: c.accentGlow, borderColor: c.accent }]}>
+              <Text style={[styles.bonusText, { color: c.accent }]}>+50 XP BONUS</Text>
             </View>
           </View>
           <View style={styles.questList}>
             {quests.map((quest: any) => (
               <TouchableOpacity
                 key={quest.id}
-                style={styles.questItem}
+                style={[styles.questItem, { backgroundColor: c.dark, borderColor: c.border }]}
                 onPress={() => {
                   useAppStore.setState({
                     activeProjectId: quest.projectId,
@@ -159,31 +162,31 @@ export default function DashboardScreen() {
                   setLogWorkModalOpen(true);
                 }}
               >
-                <View style={[styles.questCheckbox, quest.status === 'completed' && styles.questCheckboxDone]}>
-                  {quest.status === 'completed' && <MaterialIcons name="check" size={14} color="#000" />}
+                <View style={[styles.questCheckbox, { borderColor: c.primary }, quest.status === 'completed' && { backgroundColor: c.primary }]}>
+                  {quest.status === 'completed' && <MaterialIcons name="check" size={14} color="#FFF" />}
                 </View>
                 <View style={styles.questContent}>
-                  <Text style={[styles.questTitle, quest.status === 'completed' && styles.questTextDone]}>
+                  <Text style={[styles.questTitle, { color: c.text }, quest.status === 'completed' && { textDecorationLine: 'line-through', color: c.textMuted }]}>
                     {quest.title}
                   </Text>
-                  <Text style={styles.questProject}>{quest.projectName}</Text>
+                  <Text style={[styles.questProject, { color: c.textMuted }]}>{quest.projectName}</Text>
                 </View>
-                {!quest.isPlanned && <MaterialIcons name="auto-awesome" size={14} color="#FF9600" />}
+                {!quest.isPlanned && <MaterialIcons name="auto-awesome" size={14} color={c.accent} />}
               </TouchableOpacity>
             ))}
           </View>
         </Card>
       )}
 
-      {/* ── Your Path ── Duolingo-style task path */}
+      {/* ── Your Path ── */}
       {pathGroups && pathGroups.length > 0 && (
         <Card>
           <View style={styles.pathHeader}>
-            <Text style={styles.sectionTitle}>Your Path</Text>
+            <Text style={[styles.sectionTitle, { color: c.primary }]}>Your Path</Text>
             <TouchableOpacity
               onPress={() => router.push("/(tabs)/projects")}
             >
-              <Text style={styles.viewAll}>View Projects →</Text>
+              <Text style={[styles.viewAll, { color: c.textMuted }]}>View Projects →</Text>
             </TouchableOpacity>
           </View>
 
@@ -196,20 +199,18 @@ export default function DashboardScreen() {
 
             return (
               <View key={group.projectId} style={styles.pathGroup}>
-                {/* Project Header */}
-                <View style={styles.projectHeader}>
-                  <MaterialIcons name="folder" size={16} color="#58CC02" />
-                  <Text style={styles.projectName}>{group.projectName}</Text>
-                  <Text style={styles.projectProgress}>
+                <View style={[styles.projectHeader, { borderBottomColor: c.border }]}>
+                  <MaterialIcons name="folder" size={16} color={c.primary} />
+                  <Text style={[styles.projectName, { color: c.text }]}>{group.projectName}</Text>
+                  <Text style={[styles.projectProgress, { color: c.textMuted }]}>
                     {completedCount}/{total} ({pct}%)
                   </Text>
                 </View>
 
-                {/* Task Path */}
                 <View style={styles.pathContainer}>
                   {group.tasks.map((task, index) => (
                     <View key={task.id} style={styles.nodeWrapper}>
-                      {index > 0 && <View style={styles.connector} />}
+                      {index > 0 && <View style={[styles.connector, { backgroundColor: c.borderLight }]} />}
                       <PathNode
                         nodeNumber={task.nodeNumber}
                         title={task.title}
@@ -234,18 +235,18 @@ export default function DashboardScreen() {
       {/* Today's Time */}
       {dashboard.timeAllocations && dashboard.timeAllocations.length > 0 && (
         <Card>
-          <Text style={styles.sectionTitle}>Today's Time</Text>
+          <Text style={[styles.sectionTitle, { color: c.primary }]}>Today's Time</Text>
           {dashboard.timeAllocations.map((a, idx) => {
             const pct = a.allocatedMinutes > 0
               ? Math.min((a.spentMinutes / a.allocatedMinutes) * 100, 100)
               : 0;
             return (
               <View key={idx} style={styles.timeRow}>
-                <Text style={styles.timeCat}>{a.categoryName}</Text>
-                <View style={styles.timeBarTrack}>
-                  <View style={[styles.timeBarFill, { width: `${pct}%`, backgroundColor: a.color || '#58CC02' }]} />
+                <Text style={[styles.timeCat, { color: c.textSecondary }]}>{a.categoryName}</Text>
+                <View style={[styles.timeBarTrack, { backgroundColor: c.darkest }]}>
+                  <View style={[styles.timeBarFill, { width: `${pct}%`, backgroundColor: a.color || c.primary }]} />
                 </View>
-                <Text style={styles.timeLabel}>
+                <Text style={[styles.timeLabel, { color: c.textMuted }]}>
                   {a.spentMinutes}/{a.allocatedMinutes} min
                 </Text>
               </View>
@@ -257,15 +258,15 @@ export default function DashboardScreen() {
       {/* Recent Activity */}
       {dashboard.recentLogs && dashboard.recentLogs.length > 0 && (
         <Card>
-          <Text style={styles.sectionTitle}>Recent Activity</Text>
+          <Text style={[styles.sectionTitle, { color: c.primary }]}>Recent Activity</Text>
           {dashboard.recentLogs.map((log, idx) => (
-            <View key={idx} style={styles.logItem}>
-              <View style={styles.logDot} />
+            <View key={idx} style={[styles.logItem, { borderBottomColor: c.border }]}>
+              <View style={[styles.logDot, { backgroundColor: c.primary }]} />
               <View style={styles.logContent}>
-                <Text style={styles.logText} numberOfLines={1}>
+                <Text style={[styles.logText, { color: c.text }]} numberOfLines={1}>
                   {log.logText}
                 </Text>
-                <Text style={styles.logDate}>
+                <Text style={[styles.logDate, { color: c.textMuted }]}>
                   {new Date(log.createdAt).toLocaleString([], {
                     month: "short",
                     day: "numeric",
@@ -275,7 +276,7 @@ export default function DashboardScreen() {
                 </Text>
               </View>
               {log.xpAwarded > 0 && (
-                <Text style={styles.logXp}>+{log.xpAwarded}</Text>
+                <Text style={[styles.logXp, { color: c.success }]}>+{log.xpAwarded}</Text>
               )}
             </View>
           ))}
@@ -293,290 +294,52 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#131F24",
-    paddingHorizontal: 16,
-    paddingTop: 12,
-  },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: "#131F24",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  errorContainer: {
-    flex: 1,
-    backgroundColor: "#131F24",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  errorText: { color: "#EF4444", fontSize: 16 },
-
-  /* Header */
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  greeting: { fontSize: 13, color: "#6B7280" },
-  name: { fontSize: 22, fontWeight: "700", color: "#FFFFFF" },
-  levelCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#58CC02",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  levelNum: { fontSize: 18, fontWeight: "800", color: "#000" },
-
-  /* Stats Row */
-  statsRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 12,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: "#1A2C34",
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#2A3C44",
-  },
+  container: { flex: 1, paddingHorizontal: 16, paddingTop: 12 },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  errorContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  errorText: { fontSize: 16 },
+  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
+  greeting: { fontSize: 13 },
+  name: { fontSize: 22, fontWeight: "700" },
+  levelCircle: { width: 44, height: 44, borderRadius: 22, justifyContent: "center", alignItems: "center" },
+  levelNum: { fontSize: 18, fontWeight: "800", color: "#FFF" },
+  statsRow: { flexDirection: "row", gap: 10, marginBottom: 12 },
+  statCard: { flex: 1, borderRadius: 12, paddingVertical: 12, alignItems: "center", borderWidth: 1 },
   statEmoji: { fontSize: 20, marginBottom: 4 },
-  statNum: { fontSize: 20, fontWeight: "800", color: "#FFFFFF" },
-  statLabel: { fontSize: 11, color: "#6B7280", marginTop: 2 },
-
-  /* Actions */
-  actionsRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginVertical: 12,
-  },
-  actionBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    backgroundColor: "#58CC02",
-    paddingVertical: 14,
-    borderRadius: 12,
-  },
-  actionBtnSecondary: {
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: "#58CC02",
-  },
-  actionBtnText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#000",
-  },
-  actionBtnTextSecondary: {
-    color: "#58CC02",
-  },
-
-  /* Section */
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#58CC02",
-    marginBottom: 12,
-  },
-
-  /* Path */
-  pathHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  viewAll: {
-    fontSize: 12,
-    color: "#6B7280",
-    fontWeight: "500",
-  },
-  pathGroup: {
-    marginBottom: 16,
-  },
-  projectHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 12,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#1A2C34",
-  },
-  projectName: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#E5E7EB",
-  },
-  projectProgress: {
-    fontSize: 12,
-    color: "#6B7280",
-  },
-  pathContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 4,
-    paddingVertical: 8,
-  },
-  nodeWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  connector: {
-    width: 24,
-    height: 3,
-    backgroundColor: "#374151",
-    borderRadius: 2,
-  },
-
-  /* Time Rows */
-  timeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-    gap: 8,
-  },
-  timeCat: {
-    width: 60,
-    fontSize: 12,
-    color: "#9CA3AF",
-    fontWeight: "500",
-  },
-  timeBarTrack: {
-    flex: 1,
-    height: 8,
-    backgroundColor: "#0F1419",
-    borderRadius: 4,
-    overflow: "hidden",
-  },
-  timeBarFill: {
-    height: "100%",
-    backgroundColor: "#58CC02",
-    borderRadius: 4,
-  },
-  timeLabel: {
-    width: 70,
-    fontSize: 11,
-    color: "#6B7280",
-    textAlign: "right",
-  },
-
-  /* Activity */
-  logItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 8,
-    gap: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#1A2C34",
-  },
-  logDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#58CC02",
-  },
+  statNum: { fontSize: 20, fontWeight: "800" },
+  statLabel: { fontSize: 11, marginTop: 2 },
+  actionsRow: { flexDirection: "row", gap: 10, marginVertical: 12 },
+  actionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 14, borderRadius: 12 },
+  actionBtnText: { fontSize: 15, fontWeight: "700" },
+  sectionTitle: { fontSize: 14, fontWeight: "600", marginBottom: 12 },
+  pathHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
+  viewAll: { fontSize: 12, fontWeight: "500" },
+  pathGroup: { marginBottom: 16 },
+  projectHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12, paddingBottom: 8, borderBottomWidth: 1 },
+  projectName: { flex: 1, fontSize: 14, fontWeight: "700" },
+  projectProgress: { fontSize: 12 },
+  pathContainer: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", alignItems: "center", gap: 4, paddingVertical: 8 },
+  nodeWrapper: { flexDirection: "row", alignItems: "center" },
+  connector: { width: 24, height: 3, borderRadius: 2 },
+  timeRow: { flexDirection: "row", alignItems: "center", marginBottom: 10, gap: 8 },
+  timeCat: { width: 60, fontSize: 12, fontWeight: "500" },
+  timeBarTrack: { flex: 1, height: 8, borderRadius: 4, overflow: "hidden" },
+  timeBarFill: { height: "100%", borderRadius: 4 },
+  timeLabel: { width: 70, fontSize: 11, textAlign: "right" },
+  logItem: { flexDirection: "row", alignItems: "center", paddingVertical: 8, gap: 10, borderBottomWidth: 1 },
+  logDot: { width: 8, height: 8, borderRadius: 4 },
   logContent: { flex: 1 },
-  logText: { color: "#E5E7EB", fontSize: 13, fontWeight: "500" },
-  logDate: { color: "#6B7280", fontSize: 11, marginTop: 2 },
-  logXp: {
-    color: "#58CC02",
-    fontSize: 13,
-    fontWeight: "700",
-  },
-
+  logText: { fontSize: 13, fontWeight: "500" },
+  logDate: { fontSize: 11, marginTop: 2 },
+  logXp: { fontSize: 13, fontWeight: "700" },
   spacing: { height: 20 },
-
-  /* Quests Styles */
-  bonusBadge: {
-    backgroundColor: 'rgba(255, 150, 0, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 150, 0, 0.3)',
-  },
-  bonusText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#FF9600',
-  },
-  questList: {
-    gap: 8,
-  },
-  questItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#131F24',
-    padding: 12,
-    borderRadius: 12,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: '#1A2C34',
-  },
-  questCheckbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#58CC02',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  questCheckboxDone: {
-    backgroundColor: '#58CC02',
-  },
-  questContent: {
-    flex: 1,
-  },
-  questTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  questTextDone: {
-    textDecorationLine: 'line-through',
-    color: '#6B7280',
-  },
-  questProject: {
-    fontSize: 11,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-
-  /* Restore Streak */
-  restoreCard: {
-    borderColor: '#FF9600',
-    borderWidth: 1,
-    backgroundColor: '#332200',
-  },
-  restoreText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  restoreHighlight: {
-    color: '#FF9600',
-    fontWeight: '800',
-  },
-  restoreWarning: {
-    color: '#EF4444',
-    fontSize: 12,
-    marginTop: 8,
-    textAlign: 'center',
-  },
+  bonusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, borderWidth: 1 },
+  bonusText: { fontSize: 9, fontWeight: '800' },
+  questList: { gap: 8 },
+  questItem: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 12, gap: 12, borderWidth: 1 },
+  questCheckbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, justifyContent: 'center', alignItems: 'center' },
+  questContent: { flex: 1 },
+  questTitle: { fontSize: 14, fontWeight: '600' },
+  questProject: { fontSize: 11, marginTop: 2 },
+  restoreText: { fontSize: 16, fontWeight: '600', textAlign: 'center' },
 });
