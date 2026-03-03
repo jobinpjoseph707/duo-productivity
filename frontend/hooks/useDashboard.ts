@@ -1,5 +1,5 @@
 import { DashboardData, productivityService, UserProfile } from '@/services/productivityService';
-import { useQuery, UseQueryResult } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, UseQueryResult } from '@tanstack/react-query';
 
 export function useDashboard(): UseQueryResult<DashboardData, Error> {
   return useQuery({
@@ -33,5 +33,16 @@ export function useProductivityStats() {
     queryKey: ['productivity-stats'],
     queryFn: () => productivityService.getProductivityStats(),
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useRestoreStreak() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: productivityService.restoreStreak,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['user-profile'] });
+    },
   });
 }

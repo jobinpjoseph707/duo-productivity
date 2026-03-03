@@ -84,12 +84,35 @@ router.get('/dashboard', async (req: Request, res: Response) => {
         // If no profile yet, return defaults
         const levelProgress = GamificationEngine.levelProgress(profile?.total_xp || 0);
 
+        // --- STREAK RESET LOGIC ---
+        let currentStreak = profile?.streak_count || 0;
+        let lastStreakCount = profile?.last_streak_count || 0;
+
+        if (profile) {
+            const streakStatus = GamificationEngine.checkStreakStatus(profile.last_activity_date);
+            if (streakStatus.isBroken && currentStreak > 0 && !profile.streak_frozen) {
+                // Streak broken! Reset it and save the lost streak.
+                lastStreakCount = currentStreak;
+                currentStreak = 0;
+
+                await supabaseAdmin
+                    .from('user_profiles')
+                    .update({
+                        streak_count: 0,
+                        last_streak_count: lastStreakCount,
+                    })
+                    .eq('id', userId);
+            }
+        }
+        // --- END STREAK RESET LOGIC ---
+
         res.json({
             totalXP: profile?.total_xp || 0,
             level: levelProgress.level,
             levelProgress: levelProgress.progress,
             xpForNextLevel: levelProgress.nextLevelXP,
-            streak: profile?.streak_count || 0,
+            streak: currentStreak,
+            lastStreakCount: lastStreakCount,
             streakFrozen: profile?.streak_frozen || false,
             timeAllocations: timeAllocations,
             recentLogs: recentLogs.slice(0, 10).map((l: any) => ({
@@ -351,6 +374,12 @@ router.post('/log', async (req: Request, res: Response) => {
         // Calculate streak
         const streakResult = GamificationEngine.evaluateStreak(lastActivity, currentStreak);
 
+        // If streak was broken, preserve the old count for restoration
+        let lastStreakCount = profile?.last_streak_count || 0;
+        if (streakResult.streakBroken && currentStreak > 0) {
+            lastStreakCount = currentStreak;
+        }
+
         // Calculate XP
         const xpCalc = GamificationEngine.calculateWorkLogXP(!!taskId, streakResult.streakCount);
         const totalXPToAward = xpCalc.total + questBonus;
@@ -382,6 +411,7 @@ router.post('/log', async (req: Request, res: Response) => {
                 level: xpResult.newLevel,
                 streak_count: streakResult.streakCount,
                 last_activity_date: getLocalDateString(),
+                last_streak_count: lastStreakCount,
             });
 
         if (profileError) throw profileError;
@@ -440,6 +470,7 @@ router.get('/profile', async (req: Request, res: Response) => {
                 last_activity_date: null,
                 level: 1,
                 streak_frozen: false,
+                last_streak_count: 0,
             });
             return;
         }
@@ -448,6 +479,72 @@ router.get('/profile', async (req: Request, res: Response) => {
     } catch (error: any) {
         console.error('Error fetching profile:', error.message);
         res.status(500).json({ error: 'Failed to fetch profile' });
+    }
+});
+
+/**
+ * POST /api/productivity/streak/restore
+ * Spends XP to restore the last broken streak.
+ */
+router.post('/streak/restore', async (req: Request, res: Response) => {
+    try {
+        const userId = req.userId!;
+        const RESTORE_COST = 100;
+
+        const { data: profile } = await supabaseAdmin
+            .from('user_profiles')
+            .select('*')
+            .eq('id', userId)
+            .single();
+
+        if (!profile) {
+            res.status(404).json({ error: 'Profile not found' });
+            return;
+        }
+
+        const currentXP = profile.total_xp || 0;
+        const lastStreak = profile.last_streak_count || 0;
+        const currentStreak = profile.streak_count || 0;
+
+        if (lastStreak === 0) {
+            res.status(400).json({ error: 'No broken streak to restore.' });
+            return;
+        }
+
+        if (currentXP < RESTORE_COST) {
+            res.status(400).json({ error: 'Not enough XP to restore.' });
+            return;
+        }
+
+        const newTotalXP = currentXP - RESTORE_COST;
+        // They keep whatever small streak they built up since breaking it, and add the old one
+        const restoredStreak = lastStreak + currentStreak;
+
+        let newLevel = GamificationEngine.calculateLevel(newTotalXP);
+        // Level shouldn't go down theoretically but we'll recalculate
+
+        const { error } = await supabaseAdmin
+            .from('user_profiles')
+            .update({
+                total_xp: newTotalXP,
+                streak_count: restoredStreak,
+                last_streak_count: 0, // cleared
+                level: newLevel
+            })
+            .eq('id', userId);
+
+        if (error) throw error;
+
+        res.json({
+            success: true,
+            newTotalXP,
+            newStreak: restoredStreak,
+            newLevel
+        });
+
+    } catch (error: any) {
+        console.error('Error restoring streak:', error.message);
+        res.status(500).json({ error: 'Failed to restore streak' });
     }
 });
 

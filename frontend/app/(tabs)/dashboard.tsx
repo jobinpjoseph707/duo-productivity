@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { useDailyQuests } from "@/hooks/useDailyQuests";
 import {
   useDashboard,
+  useRestoreStreak,
   useUserProfile,
 } from "@/hooks/useDashboard";
 import { useTaskPath } from "@/hooks/useTaskPath";
@@ -29,6 +30,8 @@ export default function DashboardScreen() {
   const setLogWorkModalOpen = useAppStore((state) => state.setLogWorkModalOpen);
   const router = useRouter();
   const [isRoutineModalOpen, setRoutineModalOpen] = useState(false);
+
+  const restoreStreak = useRestoreStreak();
 
   const isLoading = isDashboardLoading || isProfileLoading;
 
@@ -65,7 +68,7 @@ export default function DashboardScreen() {
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
           <Text style={styles.statEmoji}>🔥</Text>
-          <Text style={styles.statNum}>{userProfile.streak_count || 0}</Text>
+          <Text style={styles.statNum}>{dashboard.streak || 0}</Text>
           <Text style={styles.statLabel}>Streak</Text>
         </View>
         <View style={styles.statCard}>
@@ -88,6 +91,31 @@ export default function DashboardScreen() {
           level={userProfile.level || 1}
         />
       </Card>
+
+      {/* Streak Restore */}
+      {dashboard.lastStreakCount > 0 && dashboard.streak === 0 && (
+        <Card style={styles.restoreCard}>
+          <Text style={styles.restoreText}>
+            You lost your <Text style={styles.restoreHighlight}>{dashboard.lastStreakCount}-day</Text> streak! 😢
+          </Text>
+          <TouchableOpacity
+            style={[styles.actionBtn, { marginTop: 12, backgroundColor: '#FF9600' }, userProfile.total_xp < 100 && { opacity: 0.5 }]}
+            onPress={() => restoreStreak.mutate()}
+            disabled={restoreStreak.isPending || userProfile.total_xp < 100}
+          >
+            {restoreStreak.isPending ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={[styles.actionBtnText, { color: '#fff' }]}>
+                Restore Streak (100 XP)
+              </Text>
+            )}
+          </TouchableOpacity>
+          {userProfile.total_xp < 100 && (
+            <Text style={styles.restoreWarning}>You need 100 XP to restore your streak.</Text>
+          )}
+        </Card>
+      )}
 
       {/* Quick Actions */}
       <View style={styles.actionsRow}>
@@ -527,5 +555,28 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#6B7280',
     marginTop: 2,
+  },
+
+  /* Restore Streak */
+  restoreCard: {
+    borderColor: '#FF9600',
+    borderWidth: 1,
+    backgroundColor: '#332200',
+  },
+  restoreText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  restoreHighlight: {
+    color: '#FF9600',
+    fontWeight: '800',
+  },
+  restoreWarning: {
+    color: '#EF4444',
+    fontSize: 12,
+    marginTop: 8,
+    textAlign: 'center',
   },
 });

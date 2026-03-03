@@ -102,6 +102,30 @@ export class GamificationEngine {
     }
 
     /**
+     * Pure function to check if a streak would be broken today without side effects.
+     */
+    static checkStreakStatus(lastActivityDate: string | null): { diffDays: number; isBroken: boolean } {
+        if (!lastActivityDate) {
+            return { diffDays: 0, isBroken: false };
+        }
+
+        const parts = lastActivityDate.split('-').map(Number);
+        const last = new Date(parts[0], parts[1] - 1, parts[2]);
+        last.setHours(0, 0, 0, 0);
+
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+
+        const diffMs = now.getTime() - last.getTime();
+        const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+        return {
+            diffDays,
+            isBroken: diffDays > 1,
+        };
+    }
+
+    /**
      * XP needed to reach the next level.
      */
     static xpForNextLevel(currentLevel: number): number {

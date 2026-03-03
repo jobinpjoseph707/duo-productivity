@@ -17,6 +17,7 @@ export interface DashboardData {
   levelProgress: number;
   xpForNextLevel: number;
   streak: number;
+  lastStreakCount: number;
   streakFrozen: boolean;
   timeAllocations: Array<{
     id: string;
@@ -143,6 +144,17 @@ export const productivityService = {
       return response.data;
     } catch (error) {
       console.error('Error fetching task path:', error);
+      throw error;
+    }
+  },
+
+  // Restore a broken streak spending XP
+  async restoreStreak() {
+    try {
+      const response = await api.post('/productivity/streak/restore');
+      return response.data;
+    } catch (error) {
+      console.error('Error restoring streak:', error);
       throw error;
     }
   },

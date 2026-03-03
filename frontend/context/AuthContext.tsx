@@ -14,10 +14,12 @@ interface AuthContextType {
     isLoading: boolean;
     isLoggingIn: boolean;
     isSigningUp: boolean;
+    isResettingPassword: boolean;
     error: string | null;
     login: (email: string, password: string) => Promise<any>;
     signup: (email: string, password: string, displayName: string) => Promise<any>;
     logout: () => Promise<void>;
+    clearPasswordReset: () => void;
     isAuthenticated: boolean;
 }
 
@@ -28,6 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [isLoading, setIsLoading] = useState(true);
     const [isSigningUp, setIsSigningUp] = useState(false);
     const [isLoggingIn, setIsLoggingIn] = useState(false);
+    const [isResettingPassword, setIsResettingPassword] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -60,6 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // Handle password recovery deep link
                 if (_event === 'PASSWORD_RECOVERY') {
                     console.log('AuthProvider: PASSWORD_RECOVERY event detected, navigating to reset screen');
+                    setIsResettingPassword(true);
                     // Use dynamic import to avoid circular dependency
                     import('expo-router').then(({ router }) => {
                         router.replace('/(auth)/reset-password');
@@ -145,6 +149,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const clearPasswordReset = () => {
+        setIsResettingPassword(false);
+    };
+
     return (
         <AuthContext.Provider
             value={{
@@ -152,10 +160,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 isLoading,
                 isLoggingIn,
                 isSigningUp,
+                isResettingPassword,
                 error,
                 login,
                 signup,
                 logout,
+                clearPasswordReset,
                 isAuthenticated: !!user,
             }}
         >

@@ -1,3 +1,5 @@
+import * as Linking from 'expo-linking';
+import { Platform } from 'react-native';
 import { supabase } from './supabaseClient';
 
 export const authService = {
@@ -65,8 +67,19 @@ export const authService = {
   // Reset password
   async resetPassword(email: string) {
     try {
+      // Platform-specific redirect URL:
+      // - Web: redirect back to current origin so Supabase client detects tokens in URL
+      // - Mobile: use deep link URL (exp:// in Expo Go, duoproductivityapp:// in APK)
+      let redirectUrl: string;
+      if (Platform.OS === 'web') {
+        redirectUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8081';
+      } else {
+        redirectUrl = Linking.createURL('reset-password');
+      }
+      console.log('Password reset redirectTo:', redirectUrl);
+
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'duoproductivityapp://reset-password',
+        redirectTo: redirectUrl,
       });
       if (error) throw error;
     } catch (error) {

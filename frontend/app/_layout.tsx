@@ -81,7 +81,7 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isResettingPassword } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
@@ -100,11 +100,11 @@ function RootLayoutNav() {
     if (!user && !inAuthGroup && segments.length > 0) {
       console.log('RootLayoutNav: Redirecting to login (User null)');
       router.replace('/(auth)/login');
-    } else if (user && inAuthGroup) {
-      console.log('RootLayoutNav: Redirecting to dashboard (User present)');
+    } else if (user && inAuthGroup && !isResettingPassword) {
+      console.log('RootLayoutNav: Redirecting to dashboard (User present, not resetting password)');
       router.replace('/(tabs)/dashboard');
     }
-  }, [user, isLoading, segments]);
+  }, [user, isLoading, segments, isResettingPassword]);
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>

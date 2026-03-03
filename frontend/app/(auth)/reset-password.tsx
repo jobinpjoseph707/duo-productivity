@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/Button";
+import { useAuth } from "@/hooks/useAuth";
 import { authService } from "@/services/authService";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -13,6 +14,7 @@ import {
 
 export default function ResetPasswordScreen() {
     const router = useRouter();
+    const { clearPasswordReset } = useAuth();
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -64,7 +66,10 @@ export default function ResetPasswordScreen() {
 
                     <Button
                         title="Sign In"
-                        onPress={() => router.replace("/(auth)/login")}
+                        onPress={() => {
+                            clearPasswordReset();
+                            router.replace("/(auth)/login");
+                        }}
                         variant="primary"
                     />
                 </View>
@@ -130,7 +135,10 @@ export default function ResetPasswordScreen() {
                 </View>
 
                 <View style={styles.footer}>
-                    <TouchableOpacity onPress={() => router.replace("/(auth)/login")}>
+                    <TouchableOpacity onPress={() => {
+                        clearPasswordReset();
+                        router.replace("/(auth)/login");
+                    }}>
                         <Text style={styles.cancelText}>Cancel</Text>
                     </TouchableOpacity>
                 </View>

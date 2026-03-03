@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import * as Linking from "expo-linking";
 import * as SecureStore from "expo-secure-store";
 import { AppState, Platform } from "react-native";
 
@@ -87,7 +88,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storage: storageAdapter,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    // On web, we need to detect session tokens in the URL (for password reset redirects)
+    // On mobile, we handle deep links manually, so keep it false
+    detectSessionInUrl: Platform.OS === 'web',
   },
 });
 
@@ -153,6 +156,50 @@ export const initializeSupabaseListeners = () => {
     handleAppStateChange,
   );
   appSubscription = subscription;
+
+  // Handle deep link URLs for password reset
+  // When Supabase redirects to duoproductivityapp://reset-password#access_token=...,
+  // we need to extract the tokens and set the session.
+  if (Platform.OS !== 'web') {
+    const handleDeepLink = async (event: { url: string }) => {
+      const url = event.url;
+      console.log('Deep link received:', url);
+
+      // Extract fragment (everything after #)
+      const hashIndex = url.indexOf('#');
+      if (hashIndex === -1) return;
+
+      const fragment = url.substring(hashIndex + 1);
+      const params = new URLSearchParams(fragment);
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+
+      if (accessToken && refreshToken) {
+        console.log('Deep link: Setting session from URL tokens');
+        try {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (error) {
+            console.error('Error setting session from deep link:', error);
+          }
+        } catch (err) {
+          console.error('Unexpected error handling deep link:', err);
+        }
+      }
+    };
+
+    // Listen for incoming links
+    Linking.addEventListener('url', handleDeepLink);
+
+    // Also check if the app was opened via a deep link (cold start)
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        handleDeepLink({ url });
+      }
+    });
+  }
 };
 
 // Clean up listeners if needed
