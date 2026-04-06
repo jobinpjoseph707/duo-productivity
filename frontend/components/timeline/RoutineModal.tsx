@@ -1,6 +1,8 @@
 import { Button } from '@/components/ui/Button';
 import { useTheme } from '@/hooks/useTheme';
 import { useCreateRoutine, useDeleteRoutine, useUpdateRoutine } from '@/hooks/useTimeline';
+import { useNotifications } from '@/hooks/useNotificationsApi';
+import { useAppStore } from '@/stores/appStore';
 import { Routine } from '@/services/timelineService';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React, { useEffect, useState } from 'react';
@@ -32,6 +34,11 @@ export function RoutineModal({ visible, onClose, initialHour, existingRoutine }:
     const createMutation = useCreateRoutine();
     const updateMutation = useUpdateRoutine();
     const deleteMutation = useDeleteRoutine();
+    
+    // Notifications support for AI approved routines
+    const { markAsRead } = useNotifications();
+    const prefillRoutineData = useAppStore(s => s.prefillRoutineData);
+    const setPrefillRoutineData = useAppStore(s => s.setPrefillRoutineData);
 
     const PRESET_CATEGORIES = [
         { name: "Code", icon: "code" as const, color: c.primary },
@@ -56,6 +63,12 @@ export function RoutineModal({ visible, onClose, initialHour, existingRoutine }:
                 setStartTime(existingRoutine.start_time.substring(0, 5));
                 setEndTime(existingRoutine.end_time.substring(0, 5));
                 setSelectedDays(existingRoutine.days_of_week);
+            } else if (prefillRoutineData) {
+                setTitle(prefillRoutineData.title || '');
+                setColor(prefillRoutineData.color || c.primary);
+                setStartTime(prefillRoutineData.start_time?.substring(0, 5) || '09:00');
+                setEndTime(prefillRoutineData.end_time?.substring(0, 5) || '10:00');
+                setSelectedDays(prefillRoutineData.days_of_week || [1, 2, 3, 4, 5]);
             } else {
                 const now = new Date();
                 const currentHourStr = String(initialHour ?? now.getHours()).padStart(2, '0');
@@ -69,7 +82,7 @@ export function RoutineModal({ visible, onClose, initialHour, existingRoutine }:
                 setSelectedDays([1, 2, 3, 4, 5]);
             }
         }
-    }, [visible, existingRoutine, initialHour, c.primary]);
+    }, [visible, existingRoutine, initialHour, c.primary, prefillRoutineData]);
 
     const selectPreset = (presetName: string, presetColor: string) => {
         setTitle(presetName);
@@ -82,6 +95,11 @@ export function RoutineModal({ visible, onClose, initialHour, existingRoutine }:
         } else {
             setSelectedDays([...selectedDays, dayIndex].sort());
         }
+    };
+
+    const handleCloseWrapper = () => {
+        setPrefillRoutineData(null);
+        onClose();
     };
 
     const handleSave = () => {
@@ -98,10 +116,17 @@ export function RoutineModal({ visible, onClose, initialHour, existingRoutine }:
             days_of_week: selectedDays,
         };
 
+        const afterSave = () => {
+            if (prefillRoutineData?.notificationId) {
+                markAsRead.mutate(prefillRoutineData.notificationId);
+            }
+            handleCloseWrapper();
+        };
+
         if (existingRoutine) {
-            updateMutation.mutate({ id: existingRoutine.id, routine: payload }, { onSuccess: onClose });
+            updateMutation.mutate({ id: existingRoutine.id, routine: payload }, { onSuccess: afterSave });
         } else {
-            createMutation.mutate(payload, { onSuccess: onClose });
+            createMutation.mutate(payload, { onSuccess: afterSave });
         }
     };
 
@@ -109,19 +134,19 @@ export function RoutineModal({ visible, onClose, initialHour, existingRoutine }:
         if (!existingRoutine) return;
         Alert.alert("Delete Routine", "Are you sure you want to delete this scheduled routine?", [
             { text: "Cancel", style: "cancel" },
-            { text: "Delete", style: "destructive", onPress: () => deleteMutation.mutate(existingRoutine.id, { onSuccess: onClose }) }
+            { text: "Delete", style: "destructive", onPress: () => deleteMutation.mutate(existingRoutine.id, { onSuccess: handleCloseWrapper }) }
         ]);
     };
 
     const isPending = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
 
     return (
-        <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
+        <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={handleCloseWrapper}>
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={[styles.overlay, { backgroundColor: c.overlay }]}>
                 <View style={[styles.modalContainer, { backgroundColor: c.dark }]}>
                     <View style={[styles.header, { borderBottomColor: c.border }]}>
                         <Text style={[styles.title, { color: c.primary }]}>{existingRoutine ? 'Edit Routine' : 'New Routine'}</Text>
-                        <TouchableOpacity onPress={onClose}>
+                        <TouchableOpacity onPress={handleCloseWrapper}>
                             <MaterialIcons name="close" size={24} color={c.textMuted} />
                         </TouchableOpacity>
                     </View>

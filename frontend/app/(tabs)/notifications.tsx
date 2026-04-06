@@ -1,6 +1,11 @@
 import { useNotifications } from '@/hooks/useNotificationsApi';
 import { useTheme } from '@/hooks/useTheme';
+import { useAppStore } from '@/stores/appStore';
+import { productivityService } from '@/services/productivityService';
+import { timelineService } from '@/services/timelineService';
+import { RoutineModal } from '@/components/timeline/RoutineModal';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Stack, useRouter } from 'expo-router';
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -9,6 +14,81 @@ export default function NotificationsScreen() {
     const theme = useTheme();
     const c = theme.colors;
     const { data: notifications, isLoading, markAsRead, markAllAsRead } = useNotifications();
+    const showNotification = useAppStore(s => s.showNotification);
+    const setLogWorkModalOpen = useAppStore(s => s.setLogWorkModalOpen);
+    const setPrefillLogData = useAppStore(s => s.setPrefillLogData);
+    const setRoutineModalOpen = useAppStore(s => s.setRoutineModalOpen);
+    const isRoutineModalOpen = useAppStore(s => s.isRoutineModalOpen);
+    const setPrefillRoutineData = useAppStore(s => s.setPrefillRoutineData);
+    const queryClient = useQueryClient();
+
+    // Work Log mutations
+    const approveWorkMutation = useMutation({
+        mutationFn: (data: any) => productivityService.logWork(data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+            queryClient.invalidateQueries({ queryKey: ["work-logs"] });
+            queryClient.invalidateQueries({ queryKey: ["user-profile"] });
+            showNotification("Work log approved! 🎉", "success");
+        },
+        onError: () => {
+            showNotification("Failed to approve work log", "error");
+        }
+    });
+
+    const handleApproveWork = (item: any) => {
+        try {
+            const payload = JSON.parse(item.external_id || '{}');
+            approveWorkMutation.mutate(payload, {
+                onSuccess: () => markAsRead.mutate(item.id)
+            });
+        } catch (e) {
+            showNotification("Invalid work log data", "error");
+        }
+    };
+
+    const handleEditWork = (item: any) => {
+        try {
+            const payload = JSON.parse(item.external_id || '{}');
+            setPrefillLogData({ ...payload, notificationId: item.id });
+            setLogWorkModalOpen(true);
+        } catch (e) {
+            showNotification("Invalid work log data", "error");
+        }
+    };
+
+    // Routine mutations
+    const approveRoutineMutation = useMutation({
+        mutationFn: (data: any) => timelineService.createRoutine(data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["timeline"] });
+            showNotification("Routine scheduled! 📅", "success");
+        },
+        onError: () => {
+            showNotification("Failed to schedule routine", "error");
+        }
+    });
+
+    const handleApproveRoutine = (item: any) => {
+        try {
+            const payload = JSON.parse(item.external_id || '{}');
+            approveRoutineMutation.mutate(payload, {
+                onSuccess: () => markAsRead.mutate(item.id)
+            });
+        } catch (e) {
+            showNotification("Invalid routine data", "error");
+        }
+    };
+
+    const handleEditRoutine = (item: any) => {
+        try {
+            const payload = JSON.parse(item.external_id || '{}');
+            setPrefillRoutineData({ ...payload, notificationId: item.id });
+            setRoutineModalOpen(true);
+        } catch (e) {
+            showNotification("Invalid routine data", "error");
+        }
+    };
 
     const renderItem = ({ item }: { item: any }) => (
         <TouchableOpacity
@@ -35,6 +115,54 @@ export default function NotificationsScreen() {
                 <Text style={[styles.timestamp, { color: c.textMuted }]}>
                     {new Date(item.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                 </Text>
+                
+                {item.type === 'pending_work' && !item.is_read && (
+                    <View style={styles.actionButtons}>
+                        <TouchableOpacity
+                            style={[styles.actionBtn, { backgroundColor: c.primary }]}
+                            onPress={() => handleApproveWork(item)}
+                            disabled={approveWorkMutation.isPending}
+                        >
+                            <Text style={styles.actionBtnText}>Approve</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.actionBtn, { backgroundColor: c.surface, borderWidth: 1, borderColor: c.primary }]}
+                            onPress={() => handleEditWork(item)}
+                        >
+                            <Text style={[styles.actionBtnText, { color: c.primary }]}>Edit</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.actionBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.borderLight }]}
+                            onPress={() => markAsRead.mutate(item.id)}
+                        >
+                            <Text style={[styles.actionBtnText, { color: c.text }]}>Dismiss</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                {item.type === 'pending_routine' && !item.is_read && (
+                    <View style={styles.actionButtons}>
+                        <TouchableOpacity
+                            style={[styles.actionBtn, { backgroundColor: c.primary }]}
+                            onPress={() => handleApproveRoutine(item)}
+                            disabled={approveRoutineMutation.isPending}
+                        >
+                            <Text style={styles.actionBtnText}>Approve</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.actionBtn, { backgroundColor: c.surface, borderWidth: 1, borderColor: c.primary }]}
+                            onPress={() => handleEditRoutine(item)}
+                        >
+                            <Text style={[styles.actionBtnText, { color: c.primary }]}>Edit</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.actionBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.borderLight }]}
+                            onPress={() => markAsRead.mutate(item.id)}
+                        >
+                            <Text style={[styles.actionBtnText, { color: c.text }]}>Dismiss</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
             </View>
             {!item.is_read && <View style={[styles.unreadDot, { backgroundColor: c.primary }]} />}
         </TouchableOpacity>
@@ -84,6 +212,10 @@ export default function NotificationsScreen() {
                     showsVerticalScrollIndicator={false}
                 />
             )}
+            <RoutineModal 
+                visible={isRoutineModalOpen} 
+                onClose={() => setRoutineModalOpen(false)} 
+            />
         </View>
     );
 }
@@ -101,4 +233,7 @@ const styles = StyleSheet.create({
     message: { fontSize: 14, marginBottom: 8, lineHeight: 20 },
     timestamp: { fontSize: 12 },
     unreadDot: { width: 10, height: 10, borderRadius: 5, marginTop: 10, marginLeft: 8 },
+    actionButtons: { flexDirection: 'row', marginTop: 12, gap: 10 },
+    actionBtn: { flex: 1, paddingVertical: 8, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+    actionBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 13 },
 });

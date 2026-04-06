@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/Button";
 import { useDashboard } from "@/hooks/useDashboard";
 import { useProjects, useProjectTasks } from "@/hooks/useProjects";
 import { useTheme } from "@/hooks/useTheme";
+import { useNotifications } from '@/hooks/useNotificationsApi';
 import { productivityService } from "@/services/productivityService";
 import { useAppStore } from "@/stores/appStore";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -37,20 +38,32 @@ export function LogWorkModal() {
     const [timeSpent, setTimeSpent] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    const prefillLogData = useAppStore((state) => state.prefillLogData);
+    const setPrefillLogData = useAppStore((state) => state.setPrefillLogData);
+    const { markAsRead } = useNotifications();
+
     const queryClient = useQueryClient();
     const activeTimers = dashboard?.timeAllocations || [];
 
     useEffect(() => {
-        if (isOpen && activeProjectId) {
-            setSelectedProjectId(activeProjectId);
+        if (isOpen) {
+            if (prefillLogData) {
+                setLogText(prefillLogData.logText || "");
+                setTimeSpent(prefillLogData.timeSpentMinutes ? String(prefillLogData.timeSpentMinutes) : "");
+                setSelectedProjectId(prefillLogData.projectId || null);
+                setSelectedTaskId(prefillLogData.taskId || null);
+                setSelectedRoutineId(prefillLogData.routineId || null);
+            } else if (activeProjectId) {
+                setSelectedProjectId(activeProjectId);
+            }
         }
-    }, [isOpen, activeProjectId]);
+    }, [isOpen, prefillLogData, activeProjectId]);
 
     useEffect(() => {
-        if (isOpen && activeTimers.length === 1) {
+        if (isOpen && !prefillLogData && activeTimers.length === 1) {
             setSelectedRoutineId(activeTimers[0].id);
         }
-    }, [isOpen, activeTimers.length]);
+    }, [isOpen, activeTimers.length, prefillLogData]);
 
     const handleClose = () => {
         setOpen(false);
@@ -59,6 +72,7 @@ export function LogWorkModal() {
         setSelectedProjectId(null);
         setSelectedTaskId(null);
         setSelectedRoutineId(null);
+        setPrefillLogData(null);
     };
 
     const handleSubmit = async () => {
@@ -72,6 +86,9 @@ export function LogWorkModal() {
                 timeSpentMinutes: timeSpent ? parseInt(timeSpent) : undefined,
                 routineId: selectedRoutineId || undefined,
             });
+            if (prefillLogData?.notificationId) {
+                markAsRead.mutate(prefillLogData.notificationId);
+            }
             queryClient.invalidateQueries({ queryKey: ["dashboard"] });
             queryClient.invalidateQueries({ queryKey: ["work-logs"] });
             queryClient.invalidateQueries({ queryKey: ["user-profile"] });

@@ -14,9 +14,15 @@ interface AppState {
 
   isLogWorkModalOpen: boolean;
   setLogWorkModalOpen: (isOpen: boolean) => void;
+  
+  prefillLogData: any | null;
+  setPrefillLogData: (data: any | null) => void;
 
   isRoutineModalOpen: boolean;
   setRoutineModalOpen: (isOpen: boolean) => void;
+
+  prefillRoutineData: any | null;
+  setPrefillRoutineData: (data: any | null) => void;
 
   // Notifications
   notification: {
@@ -42,6 +48,8 @@ const initialState = {
   isAuthModalOpen: false,
   isLogWorkModalOpen: false,
   isRoutineModalOpen: false,
+  prefillLogData: null,
+  prefillRoutineData: null,
   activeProjectId: null,
   activeTaskId: null,
 };
@@ -61,7 +69,9 @@ export const useAppStore = create<AppState>((set) => ({
   // Modal states
   setAuthModalOpen: (isOpen) => set({ isAuthModalOpen: isOpen }),
   setLogWorkModalOpen: (isOpen) => set({ isLogWorkModalOpen: isOpen }),
+  setPrefillLogData: (data) => set({ prefillLogData: data }),
   setRoutineModalOpen: (isOpen) => set({ isRoutineModalOpen: isOpen }),
+  setPrefillRoutineData: (data) => set({ prefillRoutineData: data }),
 
   // Notifications
   notification: null,
