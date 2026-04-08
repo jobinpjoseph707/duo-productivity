@@ -62,13 +62,46 @@ export const projectService = {
     }
   },
 
-  // Update task status
-  async updateTaskStatus(taskId: string, status: string) {
+  // Update task completely or just status
+  async updateTask(taskId: string, data: any) {
     try {
-      const response = await api.patch(`/tasks/${taskId}`, { status });
+      const response = await api.patch(`/projects/tasks/${taskId}`, data);
       return response.data;
     } catch (error) {
-      console.error('Error updating task status:', error);
+      console.error('Error updating task:', error);
+      throw error;
+    }
+  },
+
+  // Delete task
+  async deleteTask(taskId: string) {
+    try {
+      const response = await api.delete(`/projects/tasks/${taskId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      throw error;
+    }
+  },
+
+  // Update project
+  async updateProject(projectId: string, data: any) {
+    try {
+      const response = await api.patch(`/projects/${projectId}`, data);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating project:', error);
+      throw error;
+    }
+  },
+
+  // Delete project
+  async deleteProject(projectId: string) {
+    try {
+      const response = await api.delete(`/projects/${projectId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting project:', error);
       throw error;
     }
   },

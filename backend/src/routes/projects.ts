@@ -146,20 +146,29 @@ router.get('/:projectId/tasks', async (req: Request, res: Response) => {
 });
 
 /**
- * PATCH /api/tasks/:id
- * Update a task's status.
+ * PATCH /api/projects/tasks/:id
+ * Update a task.
  */
 router.patch('/tasks/:id', async (req: Request, res: Response) => {
     try {
-        const { status } = req.body;
-        if (!status) {
-            res.status(400).json({ error: 'Status is required' });
+        const { status, title, description, assignee, due_date, planned_date } = req.body;
+        
+        const updates: any = { updated_at: new Date().toISOString() };
+        if (status !== undefined) updates.status = status;
+        if (title !== undefined) updates.title = title;
+        if (description !== undefined) updates.description = description;
+        if (assignee !== undefined) updates.assignee = assignee;
+        if (due_date !== undefined) updates.due_date = due_date;
+        if (planned_date !== undefined) updates.planned_date = planned_date;
+
+        if (Object.keys(updates).length === 1) {
+            res.status(400).json({ error: 'No update fields provided' });
             return;
         }
 
         const { data, error } = await supabaseAdmin
             .from('tasks')
-            .update({ status, updated_at: new Date().toISOString() })
+            .update(updates)
             .eq('id', req.params.id)
             .select()
             .single();
@@ -169,6 +178,82 @@ router.patch('/tasks/:id', async (req: Request, res: Response) => {
     } catch (error: any) {
         console.error('Error updating task:', error.message);
         res.status(500).json({ error: 'Failed to update task' });
+    }
+});
+
+/**
+ * DELETE /api/projects/tasks/:id
+ * Delete a task.
+ */
+router.delete('/tasks/:id', async (req: Request, res: Response) => {
+    try {
+        const { error } = await supabaseAdmin
+            .from('tasks')
+            .delete()
+            .eq('id', req.params.id);
+
+        if (error) throw error;
+        res.json({ success: true });
+    } catch (error: any) {
+        console.error('Error deleting task:', error.message);
+        res.status(500).json({ error: 'Failed to delete task' });
+    }
+});
+
+/**
+ * PATCH /api/projects/:id
+ * Update a project.
+ */
+router.patch('/:id', async (req: Request, res: Response) => {
+    try {
+        const { status, name, description, priority, category_id, target_path, staging_repo, vercel_deployed_link } = req.body;
+        
+        const updates: any = { updated_at: new Date().toISOString() };
+        if (status !== undefined) updates.status = status;
+        if (name !== undefined) updates.name = name;
+        if (description !== undefined) updates.description = description;
+        if (priority !== undefined) updates.priority = priority;
+        if (category_id !== undefined) updates.category_id = category_id;
+        if (target_path !== undefined) updates.target_path = target_path;
+        if (staging_repo !== undefined) updates.staging_repo = staging_repo;
+        if (vercel_deployed_link !== undefined) updates.vercel_deployed_link = vercel_deployed_link;
+
+        if (Object.keys(updates).length === 1) {
+            res.status(400).json({ error: 'No update fields provided' });
+            return;
+        }
+
+        const { data, error } = await supabaseAdmin
+            .from('projects')
+            .update(updates)
+            .eq('id', req.params.id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        res.json(data);
+    } catch (error: any) {
+        console.error('Error updating project:', error.message);
+        res.status(500).json({ error: 'Failed to update project' });
+    }
+});
+
+/**
+ * DELETE /api/projects/:id
+ * Delete a project.
+ */
+router.delete('/:id', async (req: Request, res: Response) => {
+    try {
+        const { error } = await supabaseAdmin
+            .from('projects')
+            .delete()
+            .eq('id', req.params.id);
+
+        if (error) throw error;
+        res.json({ success: true });
+    } catch (error: any) {
+        console.error('Error deleting project:', error.message);
+        res.status(500).json({ error: 'Failed to delete project' });
     }
 });
 

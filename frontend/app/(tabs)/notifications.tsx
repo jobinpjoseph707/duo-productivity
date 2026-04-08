@@ -2,6 +2,7 @@ import { useNotifications } from '@/hooks/useNotificationsApi';
 import { useTheme } from '@/hooks/useTheme';
 import { useAppStore } from '@/stores/appStore';
 import { productivityService } from '@/services/productivityService';
+import { projectService } from '@/services/projectService';
 import { timelineService } from '@/services/timelineService';
 import { RoutineModal } from '@/components/timeline/RoutineModal';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -21,6 +22,106 @@ export default function NotificationsScreen() {
     const isRoutineModalOpen = useAppStore(s => s.isRoutineModalOpen);
     const setPrefillRoutineData = useAppStore(s => s.setPrefillRoutineData);
     const queryClient = useQueryClient();
+
+    // MCP mutations for projects and tasks
+    const updateProjectMutation = useMutation({
+        mutationFn: ({ id, data }: { id: string, data: any }) => projectService.updateProject(id, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["projects"] });
+            showNotification("Project updated! 🎉", "success");
+        },
+        onError: () => showNotification("Failed to update project", "error")
+    });
+
+    const deleteProjectMutation = useMutation({
+        mutationFn: (id: string) => projectService.deleteProject(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["projects"] });
+            showNotification("Project deleted!", "success");
+        },
+        onError: () => showNotification("Failed to delete project", "error")
+    });
+
+    const updateTaskMutation = useMutation({
+        mutationFn: ({ id, data }: { id: string, data: any }) => projectService.updateTask(id, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["projects"] });
+            showNotification("Task updated! ✅", "success");
+        },
+        onError: () => showNotification("Failed to update task", "error")
+    });
+
+    const deleteTaskMutation = useMutation({
+        mutationFn: (id: string) => projectService.deleteTask(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["projects"] });
+            showNotification("Task deleted!", "success");
+        },
+        onError: () => showNotification("Failed to delete task", "error")
+    });
+
+    const handleApproveMCP = (item: any) => {
+        try {
+            const payload = JSON.parse(item.external_id || '{}');
+            
+            if (item.type === 'pending_project_create') {
+                updateProjectMutation.mutate({ id: payload.projectId, data: { status: 'active' } }, {
+                    onSuccess: () => markAsRead.mutate(item.id)
+                });
+            }
+            else if (item.type === 'pending_task_create') {
+                updateTaskMutation.mutate({ id: payload.taskId, data: { status: 'todo' } }, {
+                    onSuccess: () => markAsRead.mutate(item.id)
+                });
+            }
+            else if (item.type === 'pending_project_update') {
+                updateProjectMutation.mutate({ id: payload.projectId, data: payload.updates }, {
+                    onSuccess: () => markAsRead.mutate(item.id)
+                });
+            }
+            else if (item.type === 'pending_task_update') {
+                updateTaskMutation.mutate({ id: payload.taskId, data: payload.updates }, {
+                    onSuccess: () => markAsRead.mutate(item.id)
+                });
+            }
+            else if (item.type === 'pending_project_delete') {
+                deleteProjectMutation.mutate(payload.projectId, {
+                    onSuccess: () => markAsRead.mutate(item.id)
+                });
+            }
+            else if (item.type === 'pending_task_delete') {
+                deleteTaskMutation.mutate(payload.taskId, {
+                    onSuccess: () => markAsRead.mutate(item.id)
+                });
+            }
+        } catch (e) {
+            showNotification("Invalid notification data", "error");
+        }
+    };
+
+    const handleDismissMCP = (item: any) => {
+        try {
+            const payload = JSON.parse(item.external_id || '{}');
+
+            if (item.type === 'pending_project_create') {
+                deleteProjectMutation.mutate(payload.projectId, {
+                    onSuccess: () => markAsRead.mutate(item.id),
+                    onError: () => markAsRead.mutate(item.id)
+                });
+            }
+            else if (item.type === 'pending_task_create') {
+                deleteTaskMutation.mutate(payload.taskId, {
+                    onSuccess: () => markAsRead.mutate(item.id),
+                    onError: () => markAsRead.mutate(item.id)
+                });
+            }
+            else {
+                markAsRead.mutate(item.id);
+            }
+        } catch (e) {
+            markAsRead.mutate(item.id);
+        }
+    };
 
     // Work Log mutations
     const approveWorkMutation = useMutation({
@@ -158,6 +259,30 @@ export default function NotificationsScreen() {
                         <TouchableOpacity
                             style={[styles.actionBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.borderLight }]}
                             onPress={() => markAsRead.mutate(item.id)}
+                        >
+                            <Text style={[styles.actionBtnText, { color: c.text }]}>Dismiss</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                {[
+                    'pending_project_create',
+                    'pending_task_create',
+                    'pending_project_update',
+                    'pending_task_update',
+                    'pending_project_delete',
+                    'pending_task_delete'
+                ].includes(item.type) && !item.is_read && (
+                    <View style={styles.actionButtons}>
+                        <TouchableOpacity
+                            style={[styles.actionBtn, { backgroundColor: c.primary }]}
+                            onPress={() => handleApproveMCP(item)}
+                        >
+                            <Text style={styles.actionBtnText}>Approve</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.actionBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.borderLight }]}
+                            onPress={() => handleDismissMCP(item)}
                         >
                             <Text style={[styles.actionBtnText, { color: c.text }]}>Dismiss</Text>
                         </TouchableOpacity>

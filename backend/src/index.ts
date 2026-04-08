@@ -39,34 +39,7 @@ app.use('/api/categories', authMiddleware, categoriesRouter);
 app.use('/api/timeline', authMiddleware, timelineRouter);
 app.use('/api/notifications', authMiddleware, notificationsRouter);
 
-// Task status update lives under projects router but needs its own mount
-// because frontend calls PATCH /api/tasks/:id (not /api/projects/tasks/:id)
-app.patch('/api/tasks/:id', authMiddleware, async (req, res) => {
-    // Delegate to the projects router's task handler
-    const { createUserClient } = await import('./services/supabaseClient');
-    const supabase = createUserClient(req.userToken!);
-    const { status } = req.body;
-
-    if (!status) {
-        res.status(400).json({ error: 'Status is required' });
-        return;
-    }
-
-    try {
-        const { data, error } = await supabase
-            .from('tasks')
-            .update({ status, updated_at: new Date().toISOString() })
-            .eq('id', req.params.id)
-            .select()
-            .single();
-
-        if (error) throw error;
-        res.json(data);
-    } catch (error: any) {
-        console.error('Error updating task:', error.message);
-        res.status(500).json({ error: 'Failed to update task' });
-    }
-});
+// Task updates and deletions are now handled through the projects router at /api/projects/tasks/:id
 
 // ─── 404 handler ─────────────────────────────────────────────
 app.use((_req, res) => {
